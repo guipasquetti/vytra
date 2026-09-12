@@ -99,6 +99,7 @@ export default function ClientLayout() {
           />
           <Tabs.Screen name="lista-compras" options={{ href: null }} />
           <Tabs.Screen name="anamnese" options={{ href: null }} />
+          <Tabs.Screen name="anexos" options={{ href: null }} />
         </Tabs>
       )}
     </RoleThemeProvider>

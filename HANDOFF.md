@@ -1,8 +1,9 @@
 # Vytra — Handoff
 
 > Documento de contexto para replicar o estado do projeto em outro chat.
-> Última atualização: 12/Setembro/2026 — deploy consolidado nos dois hosts com prontuário
-> evolutivo (§33), redesenho do Início (§34) e ilustrações de exercício (§28).
+> Última atualização: 12/Setembro/2026 — anexo de paciente aplicado em produção, sem deploy do
+> app ainda (§35); deploy anterior consolidou prontuário evolutivo (§33), redesenho do Início
+> (§34) e ilustrações de exercício (§28).
 
 > **Fonte canônica:** este arquivo, na raiz do repositório. Todo agente (Codex ou Claude) deve lê-lo antes de alterar o projeto e atualizá-lo ao concluir mudanças relevantes, decisões, migrações, configuração de infraestrutura ou bloqueios.
 
@@ -2903,3 +2904,58 @@ deploy --prod` → `npx vercel deploy dist --project vytra-app --prod --yes`. Bu
   `git status` confirmou `_layout.tsx` sem diff. `npx tsc --noEmit` limpo.
 - **Não testado logado com dado real** — mesma regra de nunca digitar senha de conta nenhuma.
   **Sem deploy ainda desta rodada.**
+
+## 35. Anexo de paciente — item 5 do benchmark (12/set)
+
+✅ Item 5 da lista ranqueada do §30 fechado: anexo de paciente (exame, laudo), gap que WebDiet e
+Dietbox cobrem e o Vytra não tinha. Escopo: paciente sobe o próprio documento pro profissional do
+acompanhamento; nunca o contrário (nota do profissional sobre o paciente já existe, é o
+prontuário do §33).
+
+- **Migração** [`20260912_anexos_paciente.sql`](supabase/migrations/20260912_anexos_paciente.sql),
+  **aplicada em produção** (autorizado pelo Guilherme): tabela `anexos_paciente`
+  (`client_id`/`professional_id`/`subscription_id`/`categoria` exame|laudo|outro/`nome_arquivo`/
+  `storage_path`/`observacao`) + bucket privado `anexos-paciente`. Lente §0/LGPD: documento de
+  saúde é dado sensível novo, e a tabela **nasce escopada por `subscription_id`** desde o início —
+  não repete o desenho antigo de `client_id`/`professional_id` soltos que `check_ins` teve até
+  09/set (§ "Fundação de especialidades"), quando um paciente com dois profissionais podia
+  vazar dado pro profissional errado. Mesmo trigger de validação
+  (`validar_assinatura_do_anexo`, espelha `validar_assinatura_do_checkin`) e mesma função de
+  leitura de storage por linha real (`pode_ler_anexo_paciente`, espelha `pode_ler_foto_checkin`).
+  `get_advisors(security)` depois: nenhuma categoria nova (só a mesma classe já aceita de RPC
+  `security definer` anon/authenticated-chamável). `database.types.ts` regenerado via
+  `generate_typescript_types` — achado e corrigido um erro de transcrição manual na última linha
+  de `CompositeTypes` (`[CompositeTypeName]` em vez de `[PublicCompositeTypeNameOrOptions]`) antes
+  de confirmar `npx tsc --noEmit` limpo; corrigido comparando com o texto gerado pelo MCP, não
+  reaplicando a geração.
+- **Serviço** [`anexosService.ts`](src/services/anexosService.ts) novo: upload (bucket privado,
+  caminho `{client_id}/{subscription_id}/{timestamp}-{nome}`), registro, listagem por assinatura
+  e por aluno, signed URL (1h), remoção (storage + linha).
+- **Tela do paciente** [`aluno/anexos.tsx`](src/app/aluno/anexos.tsx), rota oculta
+  (`href: null` em `aluno/_layout.tsx`, mesmo padrão de `lista-compras`/`anamnese`) — escolhe o
+  acompanhamento quando tem mais de um profissional ativo (mesmo seletor de `listarMeusProfissionais`
+  já usado no Perfil), categoria (Pill), sobe PDF ou foto (`expo-document-picker`, mesmo filtro
+  `['application/pdf', 'image/*']` de `cadastro-profissional.tsx`), lista os já enviados com
+  abrir/apagar. Link em `perfil-screen.tsx` → "Meus documentos".
+- **Tela do profissional**: [`pro/aluno/[id]/resumo.tsx`](src/app/pro/aluno/%5Bid%5D/resumo.tsx)
+  ganhou seção "Documentos do paciente" — lista os anexos do acompanhamento (RLS já escopa),
+  botão "Abrir" via signed URL. Sem upload do lado profissional aqui — não é o caso de uso.
+- **RLS verificada por simulação de JWT em transação com rollback**, com fixture de um SEGUNDO
+  profissional (nutricionista fake) vinculado ao mesmo paciente real (Guilherme/Tassis) — o
+  teste que mais importa, mesmo cuidado do fix de `check_ins`: paciente vê os 2 anexos próprios;
+  Tassis vê só o anexo do próprio acompanhamento; o nutricionista fake vê só o dele, **nunca** o
+  de Tassis; um usuário sem vínculo não vê nada. Todos os 4 resultados bateram o esperado.
+  Fixture (profile/professional/subscription/anexo, inclusive um `auth.users` sintético — a FK
+  de `profiles` exige) totalmente desfeita por `rollback` — conferido depois com `count(*) = 0`
+  em todas as tabelas envolvidas.
+- **Verificado sem login**: rota de depuração temporária (`_debug-anexos.tsx`, whitelisted por
+  uma linha em `_layout.tsx`, mesmo padrão de sempre) com dado mockado — troca de acompanhamento
+  esvazia a lista certa (isolamento visual confirmado), categoria/observação/envio/apagar
+  funcionando. Removida a rota e a linha do layout depois — `git status` confirmou `_layout.tsx`
+  sem diff. `npx tsc --noEmit` limpo (precisou reexportar web uma vez pra regenerar os tipos de
+  rota do expo-router antes do typecheck limpar — `/aluno/anexos` apareceu nas 25→26 rotas
+  estáticas do export).
+- ✅ **Testado logado pelo Guilherme, funcionou**: upload de arquivo real pelo paciente, aparece
+  em "Enviados", abre via signed URL; visível do lado profissional em "Documentos do paciente".
+- Artifact do benchmark (§30) ainda não atualizado com este item marcado como feito — atualizar
+  junto do próximo deploy, mesmo padrão já usado pro item 4 (prontuário).

@@ -112,6 +112,64 @@ export type Database = {
           },
         ]
       }
+      anexos_paciente: {
+        Row: {
+          categoria: string
+          client_id: string
+          created_at: string
+          id: string
+          nome_arquivo: string
+          observacao: string | null
+          professional_id: string
+          storage_path: string
+          subscription_id: string
+        }
+        Insert: {
+          categoria?: string
+          client_id: string
+          created_at?: string
+          id?: string
+          nome_arquivo: string
+          observacao?: string | null
+          professional_id: string
+          storage_path: string
+          subscription_id: string
+        }
+        Update: {
+          categoria?: string
+          client_id?: string
+          created_at?: string
+          id?: string
+          nome_arquivo?: string
+          observacao?: string | null
+          professional_id?: string
+          storage_path?: string
+          subscription_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "anexos_paciente_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "anexos_paciente_professional_id_fkey"
+            columns: ["professional_id"]
+            isOneToOne: false
+            referencedRelation: "professionals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "anexos_paciente_subscription_id_fkey"
+            columns: ["subscription_id"]
+            isOneToOne: false
+            referencedRelation: "subscriptions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       atendimentos: {
         Row: {
           client_id: string | null
@@ -999,6 +1057,7 @@ export type Database = {
           token: string
         }[]
       }
+      pode_ler_anexo_paciente: { Args: { p_caminho: string }; Returns: boolean }
       pode_ler_foto_checkin: { Args: { p_caminho: string }; Returns: boolean }
       recusar_convite: { Args: { p_token: string }; Returns: boolean }
       submeter_anamnese: {
@@ -1135,9 +1194,3 @@ export type CompositeTypes<
   : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema["CompositeTypes"]
     ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
     : never
-
-export const Constants = {
-  public: {
-    Enums: {},
-  },
-} as const

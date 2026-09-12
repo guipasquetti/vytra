@@ -19,6 +19,7 @@ import {
   Stat,
 } from '@/components/ui';
 import { formatarData, formatarDataHora } from '@/models/domain';
+import { listarAnexosDaAssinatura, obterUrlAnexo, type Anexo } from '@/services/anexosService';
 import {
   historicoPeso,
   historicoPontuacao,
@@ -49,6 +50,7 @@ export default function ResumoPacienteScreen() {
   const [consultas, setConsultas] = useState<{ id: string; data_hora: string; status: string; observacoes: string | null }[]>([]);
   const [evolucao, setEvolucao] = useState<Evolucao | null>(null);
   const [prontuario, setProntuario] = useState<Atendimento[]>([]);
+  const [anexos, setAnexos] = useState<Anexo[]>([]);
   const [notaTexto, setNotaTexto] = useState('');
   const [notaTeleconsulta, setNotaTeleconsulta] = useState<string | null>(null);
   const [salvandoNota, setSalvandoNota] = useState(false);
@@ -69,11 +71,12 @@ export default function ResumoPacienteScreen() {
     );
 
     if (encontrado) {
-      const [checkins, workout, fotos, atendimentos] = await Promise.all([
+      const [checkins, workout, fotos, atendimentos, docs] = await Promise.all([
         listarCheckinsDoAluno(clientId),
         getWorkoutData(clientId),
         obterComparacaoFotos(encontrado.subscriptionId),
         listarAtendimentosDoCliente(clientId),
+        listarAnexosDaAssinatura(encontrado.subscriptionId),
       ]);
       setEvolucao({
         pesos: historicoPeso(checkins),
@@ -83,6 +86,7 @@ export default function ResumoPacienteScreen() {
         streak: streakTreino(workout.historico),
       });
       setProntuario(atendimentos);
+      setAnexos(docs);
     }
     setLoading(false);
   }, [clientId, user]);
@@ -236,6 +240,32 @@ export default function ResumoPacienteScreen() {
       ) : (
         <EmptyState text="Nenhuma consulta registrada para este paciente." />
       )}
+      <SectionTitle>Documentos do paciente</SectionTitle>
+      {anexos.length ? (
+        anexos.map((a) => (
+          <Card key={a.id}>
+            <Body>{a.nome_arquivo}</Body>
+            <Caption color={Palette.textTertiary}>
+              {a.categoria} · {formatarDataHora(a.created_at)}
+            </Caption>
+            {a.observacao ? <Caption>{a.observacao}</Caption> : null}
+            <Button
+              label="Abrir"
+              variant="ghost"
+              onPress={async () => {
+                const url = await obterUrlAnexo(a.storage_path);
+                if (url) {
+                  const { Linking } = await import('react-native');
+                  Linking.openURL(url);
+                }
+              }}
+            />
+          </Card>
+        ))
+      ) : (
+        <EmptyState text="Paciente ainda não enviou nenhum documento." />
+      )}
+
       <SectionTitle>Prontuário</SectionTitle>
       <Card>
         <Field

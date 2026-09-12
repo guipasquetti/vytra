@@ -177,6 +177,14 @@ export function PerfilScreen() {
         </Card>
       ) : null}
 
+      {!isProfessional ? (
+        <Card>
+          <SectionTitle>Documentos</SectionTitle>
+          <Caption>Envie exames e laudos para seu profissional.</Caption>
+          <Button label="Meus documentos" variant="ghost" onPress={() => router.push('/aluno/anexos')} />
+        </Card>
+      ) : null}
+
       {isProfessional ? (
         <Card>
           <SectionTitle>Serviços</SectionTitle>
