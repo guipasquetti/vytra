@@ -1,9 +1,9 @@
 # Vytra — Handoff
 
 > Documento de contexto para replicar o estado do projeto em outro chat.
-> Última atualização: 12/Setembro/2026 — anexo de paciente aplicado em produção, sem deploy do
-> app ainda (§35); deploy anterior consolidou prontuário evolutivo (§33), redesenho do Início
-> (§34) e ilustrações de exercício (§28).
+> Última atualização: 12/Setembro/2026 — deploy nos dois hosts com anexo de paciente (§35),
+> guia de câmera com silhuetas + 4º ângulo (§36/§39), check-in reformulado de uma vez só (§38)
+> e correção de check-in dentro de 24h (§37).
 
 > **Fonte canônica:** este arquivo, na raiz do repositório. Todo agente (Codex ou Claude) deve lê-lo antes de alterar o projeto e atualizá-lo ao concluir mudanças relevantes, decisões, migrações, configuração de infraestrutura ou bloqueios.
 
@@ -2964,3 +2964,167 @@ prontuário do §33).
   (`entry-1765a80c4300364cf4ac3e74b1b85371.js`), conferido por `curl` — `/aluno/anexos` também
   200 nos dois (`app-treino.expo.app` e `app.vytraoficial.com.br`).
 - Artifact do benchmark (§30) ainda não atualizado com este item marcado como feito.
+
+## 36. Guia de câmera pro check-in (12/set, ampliação do item 5)
+
+✅ Pedido do Guilherme em cima do item 5: a comparação de fotos do check-in
+(`obterComparacaoFotos`, §"Fase de Ataque") só é útil se cada envio ficar no mesmo
+enquadramento — pediu uma guia pra o paciente sempre mandar a foto "de forma igual, dentro do
+mesmo padrão".
+
+- **`expo-camera` instalado** (`npx expo install expo-camera`, versão SDK 57) — **primeira vez
+  que o projeto abre a frente de permissão de câmera ao vivo.** Decisão de 06/set foi
+  deliberadamente reaproveitar só `expo-document-picker` (escolher arquivo existente) "pra não
+  abrir uma frente nova de permissão de câmera sem necessidade agora" — essa necessidade chegou
+  agora, com pedido explícito do Guilherme de garantir enquadramento consistente, algo que
+  escolher um arquivo já tirado não resolve. Plugin registrado em
+  [`app.json`](app.json) com o texto de permissão em português.
+- **[`camera-guiada.tsx`](src/components/camera-guiada.tsx)** novo: `CameraView` em tela cheia +
+  moldura de enquadramento (retângulo tracejado + linha de altura da cabeça, cor
+  `Palette.accent`, sem preenchimento — mesma linguagem de "cor é o único sinal" do §19/§32) e
+  rótulo com o ângulo (Perfil esquerdo/direito, Costas) e instrução curta. Botão de obturador,
+  virar câmera (frente/trás) e cancelar. Depois de capturar, tela de revisão
+  ("Tirar de novo" / "Usar essa foto") antes de subir — evita reenvio por engano.
+  **A moldura marca só posição/distância/enquadramento — não tenta reconhecer o corpo nem
+  validar pose**, é guia visual, não IA.
+- **[`checkin-flow.tsx`](src/components/checkin-flow.tsx)** trocou o fluxo de foto: botão
+  principal agora é "Tirar foto com a guia" (abre `CameraGuiada` em tela cheia, sobrepondo o
+  card da pergunta); **mantido** um botão secundário "Ou escolher da galeria", reaproveitando o
+  `DocumentPicker` de antes — sem esse fallback, quem não tem câmera disponível (desktop sem
+  webcam, permissão negada) ficaria travado sem enviar a foto. `uploadFotoCheckin` não mudou —
+  recebe `{uri, name}` de qualquer uma das duas origens.
+- **Sem migração, sem RLS nova** — mesmas 3 colunas de path já existentes em `check_ins`, é só
+  troca de como o arquivo chega até `uploadFotoCheckin`.
+- **Verificado sem login**: rota de depuração temporária (`_debug-camera.tsx`, whitelisted por
+  uma linha em `_layout.tsx`, mesmo padrão de sempre) — tela de permissão renderiza com o rótulo
+  certo por ângulo, `npx tsc --noEmit` limpo, sem erro de console/bundler. O ambiente de preview
+  usado aqui **bloqueia acesso a câmera de verdade** (sandbox sem hardware) — confirmado que o
+  fluxo de permissão negada não quebra a tela (nenhum crash, nenhum erro de console), mas a
+  câmera ao vivo, a moldura sobre a imagem real e a captura em si **não puderam ser testadas por
+  mim** nesse ambiente. Removida a rota e a linha do layout depois — `git status` confirmou
+  `_layout.tsx` sem diff.
+- ✅ **Testado pelo Guilherme, guia funcionou** — moldura, captura e revisão confirmadas num
+  dispositivo real.
+- ⚠️→✅ **Achado no teste: "Ou escolher da galeria" abria o seletor de ARQUIVOS do sistema, não
+  a galeria de fotos** — `expo-document-picker` (usado desde 06/set, decisão de não abrir uma
+  segunda frente de permissão) não tem noção de "álbum de fotos", só um seletor genérico de
+  arquivo do SO. Trocado por **`expo-image-picker`** (instalado, plugin novo em `app.json` com
+  `photosPermission`) — `escolherDaGaleria()` em
+  [`checkin-flow.tsx`](src/components/checkin-flow.tsx) agora chama
+  `requestMediaLibraryPermissionsAsync()` (pede acesso às fotos explicitamente, mesmo padrão da
+  câmera) e `launchImageLibraryAsync()` (abre a galeria de verdade). Escopo da troca é só o
+  fallback de galeria do check-in — `aluno/anexos.tsx` e `cadastro-profissional.tsx` continuam
+  em `expo-document-picker` de propósito (aceitam PDF, não só foto). **Verificado sem login**:
+  rota de depuração temporária (`_debug-galeria.tsx`, removida depois, `_layout.tsx` sem diff)
+  confirmou a chamada de permissão e abertura do picker sem crash (ambiente de preview não tem
+  mídia real pra selecionar, mesma limitação já registrada pra câmera). `npx tsc --noEmit`
+  limpo. **Não testado com seleção real de foto da galeria** — só o Guilherme num dispositivo
+  real confirma a permissão aparecendo e uma foto de verdade sendo escolhida.
+
+## 37. Correção do check-in recém-enviado (12/set)
+
+✅ Pedido do Guilherme testando: achou que precisava de "editar o check-in" — esclarecido que é
+**correção do check-in mais recente dentro de uma janela curta**, não reabertura livre do
+histórico (`check_ins` continua append-only por padrão, §14 — isso é exceção pontual e
+delimitada).
+
+- **Migração** [`20260912_checkins_edicao.sql`](supabase/migrations/20260912_checkins_edicao.sql),
+  **rascunhada, NÃO aplicada ainda** — falta autorização pra rodar em produção. Adiciona policy
+  `check_ins_update_self` (paciente atualiza o próprio check-in só dentro de **24h** do
+  `created_at` original, só se o acompanhamento seguir ativo) + trigger
+  `check_ins_impede_troca_vinculo` (barra mudar `client_id`/`professional_id`/`subscription_id`
+  no update, mesmo que a RLS de assinatura ativa tecnicamente permitisse mover o check-in pra
+  outro acompanhamento válido do mesmo paciente). Lente §0: update em dado de saúde é superfície
+  nova, mitigada pela janela curta (não se estende reeditando, é sempre contra o `created_at`
+  original) e pela trigger de vínculo.
+- **Serviço**: `podeEditarCheckin(checkin)` (checa a janela de 24h) e `corrigirCheckin(id,
+  respostas, fotos)` (update, recalcula pontuação, não cria linha nova) novos em
+  [`checkinService.ts`](src/services/checkinService.ts).
+- **`CheckinFlow`** ganhou prop opcional `checkinParaCorrigir` — pré-preenche respostas e fotos
+  já enviadas, chama `corrigirCheckin` em vez de `submeterCheckin` ao finalizar, título vira
+  "Corrigir check-in".
+- **`aluno/checkin.tsx`**: quando o check-in não está pendente mas o mais recente ainda está
+  dentro da janela, aparece um botão "Corrigir esse check-in" junto do aviso de "volta em
+  alguns dias".
+- `npx tsc --noEmit` limpo. **Não testado logado nem aplicado em produção** — falta autorização
+  pra rodar a migração; depois disso, testar: corrigir dentro da janela funciona, fora da
+  janela a RLS barra, e a trigger impede trocar de profissional/acompanhamento no meio da
+  correção.
+
+## 38. Check-in: todas as perguntas de uma vez (12/set)
+
+✅ Pedido do Guilherme: era uma pergunta por cartão, avançando sequencialmente (formato do §13,
+"uma pergunta por cartão" pra maximizar conclusão) — trocado por **todas as perguntas visíveis
+na mesma tela**, respondidas em qualquer ordem, com botão único "Enviar check-in" no fim.
+Reescrita de [`checkin-flow.tsx`](src/components/checkin-flow.tsx).
+
+- **Gate de envio usa o campo `opcional` do modelo** (já existia em
+  [`checkin.ts`](src/models/checkin.ts), nunca lido por nenhuma tela até aqui): só as 5
+  perguntas com `opcional: true` (pedido de revisão, as 3 fotos, feedback aberto) podem ficar em
+  branco — as outras 17 bloqueiam o botão "Enviar" enquanto não respondidas. Contador
+  "X/Y obrigatórias respondidas" no topo.
+- **`perguntasVisiveis(respostas)` continua resolvendo `dependeDe` ao vivo** — `quantidade_alcool`
+  aparece/some na mesma tela assim que `dias_alcool` muda, sem precisar avançar pra revelar
+  (antes a revelação só era visível ao alcançar aquele passo).
+- **`pedeDetalhe` agora é inline**, um `Field` que aparece dentro do próprio card quando a opção
+  que pede detalhe está selecionada — antes era uma etapa de tela cheia à parte.
+- **Removido**: conceito de "pular pergunta" com confirmação — não faz mais sentido quando
+  todas as perguntas estão na tela; opcional em branco já é o equivalente.
+- **Fotos continuam sempre opcionais** (já eram, no dado) — os botões "Tirar foto com a guia"/
+  "Ou escolher da galeria" (câmera guiada + galeria, §36) ficam dentro do card de cada ângulo,
+  sem mudança de comportamento.
+- **`corrigirCheckin`** (§37) continua funcionando igual — o formulário todo-de-uma-vez só muda
+  como as respostas chegam até `finalizar`/`enviar`, não a lógica de submeter vs. corrigir.
+- **Verificado sem login**: rota de depuração temporária (`_debug-checkin.tsx`, whitelisted por
+  uma linha em `_layout.tsx`, removida depois — `git status` confirmou `_layout.tsx` sem diff)
+  — as 22 perguntas renderizam juntas, contador incrementa ao responder, `dependeDe` some/aparece
+  ao vivo, badge "Opcional" nos 5 campos certos, botão "Enviar" desabilitado até fechar as
+  obrigatórias. ⚠️ **Achado da própria ferramenta de teste, não do código**: o clique sintético
+  do ambiente de automação não disparava o `StepperButton` (que escuta `onPressIn`/`onPressOut`,
+  não `onPress` simples, desde o hold-to-repeat de 05/set) — confirmado como limitação da
+  automação (disparando `mousedown`/`mouseup` reais via JS o valor incrementou certo), não regressão
+  no componente. `npx tsc --noEmit` limpo.
+- **Não testado logado com dado real** — mesma regra de nunca digitar senha de conta nenhuma;
+  vale um teste manual do Guilherme/Tassis respondendo um check-in de verdade nessa tela nova.
+
+## 39. Câmera preserva a sessão do check-in + 4º ângulo (frente) + silhuetas-guia (12/set)
+
+✅ Três pedidos do Guilherme testando a câmera guiada (§36) e o novo formato de check-in (§38):
+
+- **Câmera não perde mais a posição no check-in.** Até aqui `CameraGuiada` substituía a tela
+  inteira (early return antes do `<Screen>`) — voltar da câmera (foto tirada ou cancelada)
+  desmontava e remontava o formulário, perdendo a rolagem. Corrigido em
+  [`checkin-flow.tsx`](src/components/checkin-flow.tsx): a câmera agora renderiza como overlay
+  absoluto por cima do `<Screen>`, que nunca desmonta — a posição de rolagem e todas as
+  respostas já dadas continuam exatamente onde estavam ao voltar.
+- **4º ângulo: foto de frente.** Só existiam perfil esquerdo/direito/costas. Nova pergunta
+  `foto_frente` em [`checkin.ts`](src/models/checkin.ts) (opcional, mesmo padrão das outras 3),
+  coluna `check_ins.foto_frente_path`, `AnguloFoto` (`camera-guiada.tsx`) e `FotosCheckin`
+  (`checkinService.ts`) estendidos pros 4 ângulos.
+- **Silhuetas-guia no lugar da moldura genérica.** [`silhuetas-checkin.tsx`](src/components/silhuetas-checkin.tsx)
+  novo (usa `react-native-svg`, instalado nesta mudança): só 2 formas de verdade — **frontal**
+  (frente e costas, mesmo contorno — o traço de alguém parado de frente ou de costas é
+  idêntico) e **lateral** (perfil, espelhada via `scaleX` pro lado direito). Traço só, sem
+  preenchimento, mesma linguagem de "cor é o único sinal" do §19/§32. Verificado visualmente
+  numa rota de depuração temporária (removida depois): as duas formas são legíveis como pessoa
+  parada, frontal com braços/pernas separados, lateral com pé apontando pra frente.
+- **Migrações aplicadas em produção** (autorizado pelo Guilherme):
+  [`20260912_checkins_edicao.sql`](supabase/migrations/20260912_checkins_edicao.sql) (§37,
+  correção do check-in dentro de 24h) e
+  [`20260912_checkins_foto_frente.sql`](supabase/migrations/20260912_checkins_foto_frente.sql)
+  (coluna nova + `pode_ler_foto_checkin` passando a checar os 4 caminhos). `get_advisors(security)`
+  achou um real logo depois de aplicar: a trigger `check_ins_impede_troca_vinculo` (§37) tinha
+  ficado sem `search_path` fixo — inconsistente com toda outra função do projeto (vetor de
+  search_path injection). Corrigido na mesma sessão (`create or replace function ... set
+  search_path = public`), reconferido: advisor volta a mostrar só a lista já aceita. Migração
+  local também corrigida pra refletir o texto de verdade aplicado.
+  `database.types.ts` regenerado via `generate_typescript_types`. `npx tsc --noEmit` limpo.
+- ✅ **Deploy publicado nos dois hosts (12/set)**: `npx expo export --platform web` → `npx
+  vercel deploy dist --project vytra-app --prod --yes` → `npx eas deploy --prod` (passou de
+  primeira dessa vez). Bundle agora em **2 arquivos JS** (`entry-*.js` +
+  `index-*.js` novo, 45KB — code-splitting mudou com as libs novas de câmera/SVG), os dois
+  conferidos por `curl` nos dois hosts (`app-treino.expo.app`, `app.vytraoficial.com.br`),
+  ambos 200, junto com `/aluno/anexos` e `/aluno/checkin`.
+- **Não testado logado com dispositivo real** — guia de câmera com foto de frente e as
+  silhuetas novas, e a preservação de sessão ao voltar da câmera, precisam de confirmação do
+  Guilherme/Tassis num celular de verdade.

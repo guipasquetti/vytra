@@ -278,6 +278,13 @@ export const PERGUNTAS_CHECKIN: PerguntaCheckin[] = [
   },
   // Pergunta 19 do Live Clean nunca foi capturada nos prints (§13) — fora por enquanto.
   {
+    id: 'foto_frente',
+    categoria: 'Progresso visual',
+    texto: 'Foto de frente',
+    tipo: 'foto',
+    opcional: true,
+  },
+  {
     id: 'foto_perfil_esquerdo',
     categoria: 'Progresso visual',
     texto: 'Foto de perfil — lado esquerdo',

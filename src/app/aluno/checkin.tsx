@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useFocusEffect } from 'expo-router';
+import { useCallback, useState } from 'react';
 import { Image, StyleSheet, Text, View } from 'react-native';
 
 import { CheckinFlow, CheckinResumo } from '@/components/checkin-flow';
@@ -21,6 +22,7 @@ import {
   historicoPontuacao,
   listarCheckinsDaAssinatura,
   obterComparacaoFotos,
+  podeEditarCheckin,
   resumoAdesao,
   streakCheckin,
   type CheckIn,
@@ -43,6 +45,7 @@ export default function CheckinScreen() {
   const [historico, setHistorico] = useState<CheckIn[]>([]);
   const [comparacao, setComparacao] = useState<ComparacaoAngulo[]>([]);
   const [emAndamento, setEmAndamento] = useState(false);
+  const [corrigindo, setCorrigindo] = useState(false);
   const [resumo, setResumo] = useState<ResumoCheckin | null>(null);
 
   const carregar = useCallback(async () => {
@@ -69,15 +72,24 @@ export default function CheckinScreen() {
     setComparacao(fotos);
   }, [subscriptionId]);
 
-  useEffect(() => {
-    carregar();
-  }, [carregar]);
+  // `useFocusEffect`, não `useEffect` puro: as abas do expo-router não desmontam ao trocar de
+  // aba (mesmo achado do §25/Início) — sem isso, quem já abriu o Check-in uma vez fica preso
+  // no estado antigo (ex.: "já respondeu recente") mesmo depois de passar a periodicidade.
+  useFocusEffect(
+    useCallback(() => {
+      carregar();
+    }, [carregar]),
+  );
 
-  useEffect(() => {
-    carregarAcompanhamento();
-  }, [carregarAcompanhamento]);
+  useFocusEffect(
+    useCallback(() => {
+      carregarAcompanhamento();
+    }, [carregarAcompanhamento]),
+  );
 
   const profissionalSelecionado = profissionais?.find((v) => v.subscriptionId === subscriptionId) ?? null;
+  const ultimoCheckin = historico[0] ?? null;
+  const podeCorrigir = !pendente && ultimoCheckin !== null && podeEditarCheckin(ultimoCheckin);
   const pontuacoes = historicoPontuacao(historico);
   const adesao = resumoAdesao(historico);
   const streak = streakCheckin(historico);
@@ -92,6 +104,21 @@ export default function CheckinScreen() {
           setResumo(null);
           setEmAndamento(false);
           carregarAcompanhamento();
+        }}
+      />
+    );
+  }
+
+  if (corrigindo && profissionalSelecionado && ultimoCheckin) {
+    return (
+      <CheckinFlow
+        clientId={user.id}
+        professionalId={profissionalSelecionado.professionalId}
+        subscriptionId={profissionalSelecionado.subscriptionId}
+        checkinParaCorrigir={ultimoCheckin}
+        onConcluido={(r) => {
+          setCorrigindo(false);
+          setResumo(r);
         }}
       />
     );
@@ -143,6 +170,9 @@ export default function CheckinScreen() {
           <Caption>
             Você já respondeu seu check-in recente. Volta em alguns dias pra fazer o próximo.
           </Caption>
+          {podeCorrigir ? (
+            <Button label="Corrigir esse check-in" variant="ghost" onPress={() => setCorrigindo(true)} />
+          ) : null}
         </Card>
       )}
 

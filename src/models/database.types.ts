@@ -237,6 +237,7 @@ export type Database = {
           client_id: string
           created_at: string
           foto_costas_path: string | null
+          foto_frente_path: string | null
           foto_perfil_direito_path: string | null
           foto_perfil_esquerdo_path: string | null
           id: string
@@ -250,6 +251,7 @@ export type Database = {
           client_id: string
           created_at?: string
           foto_costas_path?: string | null
+          foto_frente_path?: string | null
           foto_perfil_direito_path?: string | null
           foto_perfil_esquerdo_path?: string | null
           id?: string
@@ -263,6 +265,7 @@ export type Database = {
           client_id?: string
           created_at?: string
           foto_costas_path?: string | null
+          foto_frente_path?: string | null
           foto_perfil_direito_path?: string | null
           foto_perfil_esquerdo_path?: string | null
           id?: string

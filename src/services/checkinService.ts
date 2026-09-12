@@ -3,8 +3,12 @@ import { calcularResumo, rotuloQualitativo, type RespostasCheckin, type ResumoCh
 import type { Tables } from '@/models/database.types';
 
 export type CheckIn = Tables<'check_ins'>;
+export type FotosCheckin = { frente?: string; esquerdo?: string; direito?: string; costas?: string };
 
 const PERIODICIDADE_DIAS = 14;
+/** Janela pra corrigir o check-in recém-enviado (12/set) — mesmo valor da trava em SQL
+ * (`check_ins_update_self`). Não é edição livre do histórico, só correção de erro recente. */
+const JANELA_EDICAO_HORAS = 24;
 
 /** Envia um check-in — série temporal, nunca sobrescrita (§14: cada envio é uma linha nova). */
 export async function submeterCheckin(
@@ -12,7 +16,7 @@ export async function submeterCheckin(
   professionalId: string,
   subscriptionId: string,
   respostas: RespostasCheckin,
-  fotos: { esquerdo?: string; direito?: string; costas?: string },
+  fotos: FotosCheckin,
 ): Promise<ResumoCheckin> {
   const resumo = calcularResumo(respostas);
   const { error } = await supabase.from('check_ins').insert({
@@ -24,6 +28,7 @@ export async function submeterCheckin(
     pontuacao_categorias: Object.fromEntries(
       resumo.categorias.map((c) => [c.categoria, { valor: c.pontuacao, rotulo: c.rotulo }]),
     ),
+    foto_frente_path: fotos.frente ?? null,
     foto_perfil_esquerdo_path: fotos.esquerdo ?? null,
     foto_perfil_direito_path: fotos.direito ?? null,
     foto_costas_path: fotos.costas ?? null,
@@ -32,10 +37,45 @@ export async function submeterCheckin(
   return resumo;
 }
 
+/** Se o check-in ainda pode ser corrigido (12/set) — janela curta, não é reabrir o histórico. */
+export function podeEditarCheckin(checkin: CheckIn): boolean {
+  const horasDesde = (Date.now() - new Date(checkin.created_at).getTime()) / 3_600_000;
+  return horasDesde < JANELA_EDICAO_HORAS;
+}
+
+/**
+ * Corrige o check-in mais recente, dentro da janela (12/set) — update, não insert. RLS
+ * (`check_ins_update_self`) já barra fora da janela ou de outro paciente; a trigger
+ * `check_ins_impede_troca_vinculo` barra mudar client/professional/subscription mesmo aqui.
+ */
+export async function corrigirCheckin(
+  id: string,
+  respostas: RespostasCheckin,
+  fotos: FotosCheckin,
+): Promise<ResumoCheckin> {
+  const resumo = calcularResumo(respostas);
+  const { error } = await supabase
+    .from('check_ins')
+    .update({
+      respostas,
+      pontuacao_geral: resumo.pontuacaoGeral,
+      pontuacao_categorias: Object.fromEntries(
+        resumo.categorias.map((c) => [c.categoria, { valor: c.pontuacao, rotulo: c.rotulo }]),
+      ),
+      foto_frente_path: fotos.frente ?? null,
+      foto_perfil_esquerdo_path: fotos.esquerdo ?? null,
+      foto_perfil_direito_path: fotos.direito ?? null,
+      foto_costas_path: fotos.costas ?? null,
+    })
+    .eq('id', id);
+  if (error) throw error;
+  return resumo;
+}
+
 /** Envia uma foto do check-in pro bucket privado — caminho sempre prefixado pelo próprio uid. */
 export async function uploadFotoCheckin(
   clientId: string,
-  tipo: 'esquerdo' | 'direito' | 'costas',
+  tipo: 'frente' | 'esquerdo' | 'direito' | 'costas',
   arquivo: { uri: string; name: string },
 ): Promise<string> {
   const extensao = arquivo.name.includes('.') ? arquivo.name.split('.').pop() : 'jpg';
@@ -81,6 +121,7 @@ export async function listarCheckinsDoAluno(clientId: string): Promise<CheckIn[]
 }
 
 const ANGULOS = [
+  { chave: 'foto_frente_path', angulo: 'frente', label: 'Frente' },
   { chave: 'foto_perfil_esquerdo_path', angulo: 'esquerdo', label: 'Perfil esquerdo' },
   { chave: 'foto_perfil_direito_path', angulo: 'direito', label: 'Perfil direito' },
   { chave: 'foto_costas_path', angulo: 'costas', label: 'Costas' },
@@ -88,7 +129,7 @@ const ANGULOS = [
 
 export type FotoComparacao = { url: string; data: string };
 export type ComparacaoAngulo = {
-  angulo: 'esquerdo' | 'direito' | 'costas';
+  angulo: 'frente' | 'esquerdo' | 'direito' | 'costas';
   label: string;
   primeira: FotoComparacao | null;
   ultima: FotoComparacao | null;
@@ -103,7 +144,7 @@ export type ComparacaoAngulo = {
 export async function obterComparacaoFotos(subscriptionId: string): Promise<ComparacaoAngulo[]> {
   const checkins = await listarCheckinsDaAssinatura(subscriptionId); // mais recente primeiro
   const comFoto = checkins.filter(
-    (c) => c.foto_perfil_esquerdo_path || c.foto_perfil_direito_path || c.foto_costas_path,
+    (c) => c.foto_frente_path || c.foto_perfil_esquerdo_path || c.foto_perfil_direito_path || c.foto_costas_path,
   );
   if (comFoto.length < 2) return [];
 

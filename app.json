@@ -33,6 +33,18 @@
           "image": "./assets/brand/vytra-splash-512.png",
           "imageWidth": 140
         }
+      ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "A Vytra usa a câmera pra você tirar as fotos de progresso do check-in, sempre no mesmo enquadramento."
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "A Vytra acessa suas fotos pra você enviar uma foto já tirada no check-in ou um documento de exame."
+        }
       ]
     ],
     "experiments": {
