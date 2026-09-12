@@ -3084,8 +3084,8 @@ Reescrita de [`checkin-flow.tsx`](src/components/checkin-flow.tsx).
   não `onPress` simples, desde o hold-to-repeat de 05/set) — confirmado como limitação da
   automação (disparando `mousedown`/`mouseup` reais via JS o valor incrementou certo), não regressão
   no componente. `npx tsc --noEmit` limpo.
-- **Não testado logado com dado real** — mesma regra de nunca digitar senha de conta nenhuma;
-  vale um teste manual do Guilherme/Tassis respondendo um check-in de verdade nessa tela nova.
+- ✅ **Testado logado pelo Guilherme (celular real, mesma rodada do §39)**: check-in completo
+  respondido no formato novo, sem travar.
 
 ## 39. Câmera preserva a sessão do check-in + 4º ângulo (frente) + silhuetas-guia (12/set)
 
@@ -3125,6 +3125,7 @@ Reescrita de [`checkin-flow.tsx`](src/components/checkin-flow.tsx).
   `index-*.js` novo, 45KB — code-splitting mudou com as libs novas de câmera/SVG), os dois
   conferidos por `curl` nos dois hosts (`app-treino.expo.app`, `app.vytraoficial.com.br`),
   ambos 200, junto com `/aluno/anexos` e `/aluno/checkin`.
-- **Não testado logado com dispositivo real** — guia de câmera com foto de frente e as
-  silhuetas novas, e a preservação de sessão ao voltar da câmera, precisam de confirmação do
-  Guilherme/Tassis num celular de verdade.
+- ✅ **Testado pelo Guilherme num celular real, tudo funcionou**: os 4 ângulos (frente incluído),
+  as silhuetas-guia sobre a câmera ao vivo, a sessão do check-in preservada ao voltar da câmera,
+  e a galeria via `expo-image-picker`. Item 5 do benchmark (§30) e a ampliação de check-in ficam
+  fechados de ponta a ponta, em produção.
