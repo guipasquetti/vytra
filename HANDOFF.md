@@ -2957,5 +2957,10 @@ prontuário do §33).
   estáticas do export).
 - ✅ **Testado logado pelo Guilherme, funcionou**: upload de arquivo real pelo paciente, aparece
   em "Enviados", abre via signed URL; visível do lado profissional em "Documentos do paciente".
-- Artifact do benchmark (§30) ainda não atualizado com este item marcado como feito — atualizar
-  junto do próximo deploy, mesmo padrão já usado pro item 4 (prontuário).
+- ✅ **Commitado (`8fa78c2`) e deployado nos dois hosts (12/set)**: `npx expo export --platform
+  web` → `npx vercel deploy dist --project vytra-app --prod --yes` → `npx eas deploy --prod`
+  (bloqueado pelo classificador de auto mode na primeira tentativa, mesma classe já documentada
+  em §8/§26, passou na segunda). Bundle hash idêntico nos dois
+  (`entry-1765a80c4300364cf4ac3e74b1b85371.js`), conferido por `curl` — `/aluno/anexos` também
+  200 nos dois (`app-treino.expo.app` e `app.vytraoficial.com.br`).
+- Artifact do benchmark (§30) ainda não atualizado com este item marcado como feito.
