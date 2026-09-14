@@ -8,12 +8,18 @@ import { listarAlunos, listarMeusProfissionais } from '@/services/professionalSe
 import { atualizarPerfil, signOut } from '@/services/authService';
 import { rotuloEspecialidade } from '@/services/solicitacoesService';
 import { proximaTeleconsulta, type Teleconsulta } from '@/services/teleconsultaService';
-import { obterMinhaVerificacao, type VerificacaoProfissional } from '@/services/verificacaoService';
+import { obterMinhaVerificacao, rotuloTipoRegistro, type VerificacaoProfissional } from '@/services/verificacaoService';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
 import { Palette, Spacing } from '@/theme';
 
-type Vinculo = { titulo: string; detalhe: string; verificado?: boolean; bio?: string | null };
+type Vinculo = {
+  titulo: string;
+  detalhe: string;
+  verificado?: boolean;
+  bio?: string | null;
+  tipoRegistro?: string | null;
+};
 
 const OPCOES_SEXO = [
   { valor: 'feminino', label: 'Feminino' },
@@ -78,6 +84,7 @@ export function PerfilScreen() {
             detalhe: p.planoNome ?? 'Sem plano definido',
             verificado: p.verificado,
             bio: p.bio,
+            tipoRegistro: p.tipoRegistro,
           })),
         ),
       );
@@ -193,7 +200,9 @@ export function PerfilScreen() {
             <View style={styles.cabecalho}>
               <View style={styles.nomeComSelo}>
                 <Body>{profile?.nome || 'Sem nome'}</Body>
-                {isProfessional && verificacao?.status === 'aprovado' ? <SeloVerificado /> : null}
+                {isProfessional && verificacao?.status === 'aprovado' ? (
+                  <SeloVerificado label={rotuloTipoRegistro(verificacao.tipoRegistro)} />
+                ) : null}
               </View>
               <Button label="Editar" variant="ghost" onPress={iniciarEdicao} />
             </View>
@@ -264,7 +273,7 @@ export function PerfilScreen() {
           <Card key={i}>
             <View style={styles.nomeComSelo}>
               <Body>{v.titulo}</Body>
-              {v.verificado ? <SeloVerificado size={14} /> : null}
+              {v.verificado ? <SeloVerificado size={14} label={rotuloTipoRegistro(v.tipoRegistro ?? null)} /> : null}
             </View>
             <Caption>{v.detalhe}</Caption>
             {v.bio ? <Caption color={Palette.text}>{v.bio}</Caption> : null}

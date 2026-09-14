@@ -1,9 +1,9 @@
 # Vytra — Handoff
 
 > Documento de contexto para replicar o estado do projeto em outro chat.
-> Última atualização: 14/Setembro/2026 — solicitar alteração de cadastro profissional + selo
-> de verificado pro paciente (ver §45); achado drift de segurança nos 4 helpers RPC, pendência
-> separada anotada lá.
+> Última atualização: 14/Setembro/2026 — Painel/abas/selo pararam de depender de
+> `especialidade` sozinha, passam a olhar o plano de cada paciente (caso real: nutricionista
+> que também treina), ver §46. Ainda pendente: drift de segurança nos 4 helpers RPC (§45).
 
 > **Fonte canônica:** este arquivo, na raiz do repositório. Todo agente (Codex ou Claude) deve lê-lo antes de alterar o projeto e atualizá-lo ao concluir mudanças relevantes, decisões, migrações, configuração de infraestrutura ou bloqueios.
 
@@ -3165,6 +3165,21 @@ Reescrita de [`checkin-flow.tsx`](src/components/checkin-flow.tsx).
   raça/etnia do paciente. Cada prompt novo deve declarar a representação escolhida, preservar
   as regras biomecânicas e o padrão visual Vytra, e a revisão deve conferir a distribuição
   acumulada antes de aprovar o lote.
+- ✅ **Primeiro lote diverso de exercícios estáticos (14/set):** adicionados em
+  `assets/exercises/`, todos PNG 1536×1024 com `alpha` real, duas fases de execução, rosto sem
+  traços, equipamento grafite e seta teal: `supino-inclinado-com-halteres.png` (mulher negra),
+  `remada-curvada-com-barra.png` (homem do Leste Asiático), `agachamento-goblet.png` (mulher do
+  Leste Asiático) e `rosca-direta-barra-ez.png` (homem brasileiro pardo/mestiço). As poses foram
+  revisadas para manter mãos, carga e trajetória coerentes entre início e fim.
+- ✅ **Integração do lote diverso (14/set):** `src/lib/exerciseIllustrations.ts` resolve os quatro
+  exercícios localmente; `generate-ai-plan` passa a preferi-los e
+  `generate-exercise-illustration` os reconhece como estáticos, evitando geração dinâmica
+  duplicada. Não houve publicação nesta alteração. A seleção continua editorial — esses rótulos
+  descrevem os assets e não podem ser usados para inferir ou persistir raça/etnia de pacientes.
+- 🔎 **Validação do lote diverso (14/set):** `npx tsc --noEmit`, `npx expo export --platform web`
+  e `git diff --check` passaram; os quatro PNGs tiveram `alpha` e 1536×1024 confirmados. `npm run
+  lint` segue reprovando por 11 erros preexistentes de `react-hooks/set-state-in-effect` em telas
+  fora deste lote; nenhum diagnóstico envolve os arquivos alterados aqui.
 - **Migrações aplicadas em produção** (autorizado pelo Guilherme):
   [`20260912_checkins_edicao.sql`](supabase/migrations/20260912_checkins_edicao.sql) (§37,
   correção do check-in dentro de 24h) e
@@ -3499,3 +3514,70 @@ Meta, mas na cor da marca.
 - **Deploy publicado nos dois hosts (14/set)**: mesmo pipeline de sempre. Bundle
   `entry-7889fe9e2301bdcc2f34d5015054c5d5.js`, conferido por `curl` (hash igual nos dois +
   `/pro/cadastro-editar` 200) em `app-treino.expo.app` e `app.vytraoficial.com.br`.
+
+## 46. Caso real do Tassis: nutricionista que também monta treino — 4 mudanças (14/set)
+
+✅ Pedido do Guilherme, motivado por um caso real: Tassis é formado/registrado só em Nutrição
+(CRN), mas monta treino por experiência pra alguns pacientes (inclusive o Guilherme), sem ter
+CREF. Isso expôs que `professionals.especialidade` era usado como **fonte única de verdade**
+em 3 lugares diferentes que na real são independentes: (1) o que o selo afirma, (2) que Painel
+o profissional vê, (3) quais métricas de treino ele recebe. Corrigido nos 3, sem tocar no
+quarto (abas do aluno) de um jeito que travasse expansão futura:
+
+1. **Selo com o conselho certo** — `professional_verificacoes` ganha `tipo_registro`
+   (`CREF`/`CRN`, texto + CHECK, mesmo padrão de `especialidade`/`periodicidade`). Migração
+   [`20260914_tipo_registro_verificacao.sql`](supabase/migrations/20260914_tipo_registro_verificacao.sql),
+   aplicada em produção (2 tentativas — a 1ª falhou em `drop function`/recriar
+   `obter_selo_profissionais` com coluna nova no retorno, Postgres exige `DROP` antes de mudar
+   o shape de saída de uma function; toda a migração rodou atômica então nada ficou pela
+   metade). `cadastrar_profissional` (cadastro novo) já deriva `tipo_registro` de
+   `p_especialidade` — os dois nascem 1:1 nesse momento, só divergem depois via
+   `solicitarAlteracaoCadastro`. `obter_selo_profissionais` devolve `tipo_registro` também;
+   `SeloVerificado` ([ui/index.tsx](src/components/ui/index.tsx)) ganhou prop `label` opcional
+   (pill ícone+texto, ex. "✅ Nutricionista") via `rotuloTipoRegistro()`, novo em
+   [`verificacaoService.ts`](src/services/verificacaoService.ts). Tela
+   [`pro/cadastro-editar.tsx`](src/app/pro/cadastro-editar.tsx) ganhou pills CREF/CRN pra
+   escolher o conselho explicitamente (não infere mais de especialidade). `admin.tsx` também
+   corrigido: o link "conferir no site do conselho" usava `especialidade` — trocado pra
+   `tipoRegistro`, senão um pedido de alteração pra CREF de alguém com especialidade
+   nutricionista mandaria o admin pro site errado.
+2. **Painel por paciente, não por especialidade do profissional** —
+   [`gestaoService.ts`](src/services/gestaoService.ts) (`semPlano`/`semTreino7d`) e
+   [`pro/index.tsx`](src/app/pro/index.tsx) (`montarAlertas`, visibilidade/rótulo dos
+   indicadores) paravam de olhar `professionals.especialidade` (flag única, tudo ou nada) e
+   passaram a olhar `professional_plans.inclui_treino`/`inclui_dieta` **do plano CONFIRMADO de
+   cada paciente** (`AlunoVinculado.incluiTreino`/`incluiDieta`, novo em
+   [`professionalService.ts`](src/services/professionalService.ts)). Resultado: Tassis
+   (especialidade agora `nutricionista`) continua vendo "sem treino há 7 dias" e alertas de
+   treino especificamente pros pacientes cujo plano inclui treino (você), sem isso vazar pra
+   quem só tem plano de dieta, e sem precisar ficar ligando/desligando por especialidade.
+3. **Abas do aluno por plano contratado, não fixas** —
+   [`aluno/_layout.tsx`](src/app/aluno/_layout.tsx) esconde a aba Treino/Dieta
+   (`href: capacidades.treino ? undefined : null`) quando NENHUMA assinatura ativa do aluno
+   inclui aquele módulo (`obterCapacidadesAluno`, novo em `professionalService.ts` — união
+   entre todas as assinaturas ativas, já que o aluno pode ter mais de um profissional).
+   Permissivo por padrão: enquanto não há nenhum plano CONFIRMADO ainda (`plan_id` nulo, aluno
+   em onboarding), mostra as duas abas — só esconde quando já dá pra saber que não inclui.
+4. **`professionals.especialidade` do Tassis → `nutricionista`** — aplicado na mesma migração
+   (item 1). Painel dele passa a usar a framing/subtitle de nutricionista, mas os indicadores
+   de treino (item 2) continuam aparecendo porque ele tem pelo menos um paciente com
+   `incluiTreino=true`.
+
+⚠️ **Ideia capturada, não construída — marketplace/diretório** (Guilherme, mesma conversa):
+quando a aba escondida (item 3) deixa um espaço vazio pro paciente que só tem dieta OU só tem
+treino, esse é o lugar natural pra um futuro marketplace de profissionais dentro do app —
+buscar/contratar quem cobre o serviço que falta, com avaliação/classificação. Já era pendência
+conhecida desde o kickoff (§1: "fora de escopo agora, não travar N:N pra isso depois") — o que
+é novo aqui é o gancho de UX concreto (o slot da aba vazia). **Não implementado.**
+
+- **Teste real (14/set, sessão do Guilherme como aluno, preview local com sessão já
+  autenticada no navegador — sem senha digitada por agente)**: `/aluno/perfil` mostra "Tassis
+  Morais ✅ Nutricionista" no card de "Meus profissionais", selo verde-menta com rótulo
+  certo. Barra de abas mostra Treino+Dieta+Check-in+Perfil (plano do Guilherme inclui os
+  dois) — confirma que `obterCapacidadesAluno` não quebrou o caso comum. `npx tsc --noEmit`
+  limpo. **Não testado**: Painel do Tassis como profissional (precisa da senha dele, que eu
+  não tenho e não peço), fluxo completo de `solicitarAlteracaoCadastro` escolhendo um segundo
+  tipo de registro.
+- **Deploy publicado nos dois hosts (14/set)**: mesmo pipeline de sempre. Bundle
+  `entry-10d83e83c697de6812315304645a4023.js`, hash igual e 200 nos dois
+  (`app-treino.expo.app`, `app.vytraoficial.com.br`).

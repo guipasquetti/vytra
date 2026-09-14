@@ -110,8 +110,13 @@ export async function obterPainelGestao(professionalId: string): Promise<PainelG
     especialidade,
     totalAlunos: alunos.length,
     ativos: alunos.filter((a) => a.status === 'ativa').length,
-    semPlano: resumos.filter((a) => (especialidade === 'nutricionista' ? !a.temPlanoDieta : !a.temPlanoTreino)).length,
-    semTreino7d: especialidade === 'nutricionista' ? 0 : alunos.filter((a) => {
+    // Por paciente, não por especialidade do profissional (§45 do handoff): um profissional
+    // pode vender planos mistos (ex.: nutricionista que também monta treino por experiência,
+    // sem CREF) — cada aluno só conta como "sem plano" pro que o plano DELE realmente inclui.
+    semPlano: resumos.filter((a) => (a.incluiDieta && !a.temPlanoDieta) || (a.incluiTreino && !a.temPlanoTreino))
+      .length,
+    semTreino7d: alunos.filter((a) => {
+      if (!a.incluiTreino) return false;
       const dias = diasDesde(a.ultimoTreino);
       return dias === null || dias > 7;
     }).length,

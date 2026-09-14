@@ -2,11 +2,25 @@ import { supabase } from '@/lib/supabase';
 
 export type StatusVerificacao = 'pendente' | 'aprovado' | 'rejeitado';
 
+/** Conselho do registro — não confundir com `professionals.especialidade` (§45 do handoff):
+ *  especialidade escolhe o Painel/dashboard; tipo_registro é o que o selo afirma de verdade. */
+export type TipoRegistro = 'CREF' | 'CRN';
+
+const ROTULOS_TIPO_REGISTRO: Record<TipoRegistro, string> = {
+  CREF: 'Educador físico',
+  CRN: 'Nutricionista',
+};
+
+export function rotuloTipoRegistro(tipo: string | null): string | null {
+  return tipo && tipo in ROTULOS_TIPO_REGISTRO ? ROTULOS_TIPO_REGISTRO[tipo as TipoRegistro] : null;
+}
+
 export type VerificacaoProfissional = {
   status: StatusVerificacao;
   motivoRejeicao: string | null;
   numeroRegistro: string;
   ufRegistro: string;
+  tipoRegistro: string | null;
   bio: string | null;
 };
 
@@ -14,6 +28,7 @@ export type VerificacaoProfissional = {
 export type SeloProfissional = {
   verificado: boolean;
   bio: string | null;
+  tipoRegistro: string | null;
 };
 
 export type SolicitacaoVerificacaoAdmin = {
@@ -25,6 +40,9 @@ export type SolicitacaoVerificacaoAdmin = {
   cpf: string | null;
   numeroRegistro: string;
   ufRegistro: string;
+  /** CREF/CRN do registro sendo pedido — pode divergir de `especialidade` num pedido de
+   *  alteração (§45 do handoff), é o que decide pra qual conselho conferir. */
+  tipoRegistro: string | null;
   documentoPath: string | null;
   bio: string | null;
   status: StatusVerificacao;
@@ -78,7 +96,7 @@ export async function cadastrarProfissional(params: {
 export async function obterMinhaVerificacao(professionalId: string): Promise<VerificacaoProfissional | null> {
   const { data } = await supabase
     .from('professional_verificacoes')
-    .select('status, motivo_rejeicao, numero_registro, uf_registro, bio')
+    .select('status, motivo_rejeicao, numero_registro, uf_registro, tipo_registro, bio')
     .eq('professional_id', professionalId)
     .maybeSingle();
   if (!data) return null;
@@ -87,6 +105,7 @@ export async function obterMinhaVerificacao(professionalId: string): Promise<Ver
     motivoRejeicao: data.motivo_rejeicao,
     numeroRegistro: data.numero_registro,
     ufRegistro: data.uf_registro,
+    tipoRegistro: data.tipo_registro,
     bio: data.bio,
   };
 }
@@ -101,11 +120,18 @@ export async function obterMinhaVerificacao(professionalId: string): Promise<Ver
  */
 export async function solicitarAlteracaoCadastro(
   professionalId: string,
-  params: { numeroRegistro: string; ufRegistro: string; bio: string; documentoPath?: string },
+  params: {
+    tipoRegistro: TipoRegistro;
+    numeroRegistro: string;
+    ufRegistro: string;
+    bio: string;
+    documentoPath?: string;
+  },
 ): Promise<void> {
   const { error } = await supabase
     .from('professional_verificacoes')
     .update({
+      tipo_registro: params.tipoRegistro,
       numero_registro: params.numeroRegistro,
       uf_registro: params.ufRegistro,
       bio: params.bio || null,
@@ -131,7 +157,12 @@ export async function obterSelosProfissionais(
     p_professional_ids: professionalIds,
   });
   if (error || !data) return new Map();
-  return new Map(data.map((row) => [row.professional_id, { verificado: row.verificado, bio: row.bio }]));
+  return new Map(
+    data.map((row) => [
+      row.professional_id,
+      { verificado: row.verificado, bio: row.bio, tipoRegistro: row.tipo_registro },
+    ]),
+  );
 }
 
 /** Admin: fila de solicitações pendentes, com o mínimo pra decidir (nunca dado de saúde). */
@@ -160,6 +191,7 @@ export async function listarVerificacoesPendentes(): Promise<SolicitacaoVerifica
     cpf: v.cpf,
     numeroRegistro: v.numero_registro,
     ufRegistro: v.uf_registro,
+    tipoRegistro: v.tipo_registro,
     documentoPath: v.documento_path,
     bio: v.bio,
     status: v.status as StatusVerificacao,

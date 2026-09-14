@@ -7,6 +7,7 @@ import { OnboardingAnamnese } from '@/components/onboarding-anamnese';
 import { SolicitacoesPendentes } from '@/components/solicitacoes-pendentes';
 import { RoleThemeProvider } from '@/contexts/role-theme';
 import { possuiAnamnese } from '@/services/onboardingService';
+import { obterCapacidadesAluno } from '@/services/professionalService';
 import { listarSolicitacoesPendentes, type SolicitacaoProfissional } from '@/services/solicitacoesService';
 import { useAuthStore } from '@/store/authStore';
 import { Palette, RoleColors } from '@/theme';
@@ -22,6 +23,7 @@ export default function ClientLayout() {
   const user = useAuthStore((s) => s.user);
   const [solicitacoes, setSolicitacoes] = useState<SolicitacaoProfissional[] | null>(null);
   const [temAnamnese, setTemAnamnese] = useState<boolean | null>(null);
+  const [capacidades, setCapacidades] = useState<{ treino: boolean; dieta: boolean } | null>(null);
 
   const carregarSolicitacoes = useCallback(() => {
     listarSolicitacoesPendentes().then(setSolicitacoes);
@@ -31,13 +33,15 @@ export default function ClientLayout() {
     if (!user) {
       setSolicitacoes(null);
       setTemAnamnese(null);
+      setCapacidades(null);
       return;
     }
     carregarSolicitacoes();
     possuiAnamnese(user.id).then(setTemAnamnese);
+    obterCapacidadesAluno(user.id).then(setCapacidades);
   }, [user, carregarSolicitacoes]);
 
-  if (!user || solicitacoes === null || temAnamnese === null) return <Loading />;
+  if (!user || solicitacoes === null || temAnamnese === null || capacidades === null) return <Loading />;
 
   return (
     <RoleThemeProvider color={RoleColors.aluno}>
@@ -68,6 +72,7 @@ export default function ClientLayout() {
           <Tabs.Screen
             name="treino"
             options={{
+              href: capacidades.treino ? undefined : null,
               title: 'Treino',
               tabBarIcon: ({ color, size }) => <Ionicons name="barbell" size={size} color={color} />,
             }}
@@ -75,6 +80,7 @@ export default function ClientLayout() {
           <Tabs.Screen
             name="dieta"
             options={{
+              href: capacidades.dieta ? undefined : null,
               title: 'Dieta',
               tabBarIcon: ({ color, size }) => (
                 <Ionicons name="restaurant" size={size} color={color} />

@@ -796,6 +796,7 @@ export type Database = {
           reviewed_at: string | null
           reviewed_by: string | null
           status: string
+          tipo_registro: string | null
           uf_registro: string
           updated_at: string
         }
@@ -811,6 +812,7 @@ export type Database = {
           reviewed_at?: string | null
           reviewed_by?: string | null
           status?: string
+          tipo_registro?: string | null
           uf_registro: string
           updated_at?: string
         }
@@ -826,6 +828,7 @@ export type Database = {
           reviewed_at?: string | null
           reviewed_by?: string | null
           status?: string
+          tipo_registro?: string | null
           uf_registro?: string
           updated_at?: string
         }
@@ -1143,6 +1146,7 @@ export type Database = {
         Returns: {
           bio: string
           professional_id: string
+          tipo_registro: string
           verificado: boolean
         }[]
       }

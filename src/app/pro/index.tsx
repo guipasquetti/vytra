@@ -4,7 +4,7 @@ import { Linking, Pressable, StyleSheet, View } from 'react-native';
 
 import { Body, Button, Caption, Card, EmptyState, Field, Loading, Pill, Screen, SectionTitle } from '@/components/ui';
 import { formatarDataHora } from '@/models/domain';
-import { obterPainelGestao, type EspecialidadePainel, type PainelGestao, type ResumoAluno } from '@/services/gestaoService';
+import { obterPainelGestao, type PainelGestao, type ResumoAluno } from '@/services/gestaoService';
 import { confirmarPlanoSolicitado } from '@/services/professionalService';
 import { atualizarStatusTeleconsulta, criarTeleconsulta, type TeleconsultaComPaciente } from '@/services/teleconsultaService';
 import { obterMinhaVerificacao, type VerificacaoProfissional } from '@/services/verificacaoService';
@@ -18,29 +18,38 @@ function diasDesde(iso: string | null): number | null {
   return Math.round((Date.now() - new Date(iso).getTime()) / 86_400_000);
 }
 
-function montarAlertas(alunos: ResumoAluno[], especialidade: EspecialidadePainel): Alerta[] {
+/**
+ * Por aluno, não por especialidade do profissional (§45 do handoff) — cada par
+ * paciente↔profissional contratou o que o PLANO CONFIRMADO dele inclui (`incluiTreino`/
+ * `incluiDieta`), e um profissional pode vender planos mistos mesmo sem ser formado nos dois
+ * (ex.: nutricionista que também monta treino por experiência).
+ */
+function montarAlertas(alunos: ResumoAluno[]): Alerta[] {
   const alertas: Alerta[] = [];
   for (const aluno of alunos) {
-    const dias = diasDesde(aluno.ultimoTreino);
-    if (especialidade === 'personal_trainer' && (dias === null || dias > 7)) {
-      alertas.push({
-        clientId: aluno.clientId,
-        nome: aluno.nome,
-        texto: dias === null ? 'Nunca treinou' : `Sem treino há ${dias} dia${dias === 1 ? '' : 's'}`,
-      });
+    if (aluno.incluiTreino) {
+      const dias = diasDesde(aluno.ultimoTreino);
+      if (dias === null || dias > 7) {
+        alertas.push({
+          clientId: aluno.clientId,
+          nome: aluno.nome,
+          texto: dias === null ? 'Nunca treinou' : `Sem treino há ${dias} dia${dias === 1 ? '' : 's'}`,
+        });
+      }
+      if (!aluno.temPlanoTreino) {
+        alertas.push({ clientId: aluno.clientId, nome: aluno.nome, texto: 'Sem treino montado ainda' });
+      }
     }
-    const temPrescricao = especialidade === 'nutricionista' ? aluno.temPlanoDieta : aluno.temPlanoTreino;
-    if (!temPrescricao) {
-      alertas.push({
-        clientId: aluno.clientId,
-        nome: aluno.nome,
-        texto: especialidade === 'nutricionista' ? 'Sem plano alimentar montado' : 'Sem treino montado ainda',
-      });
+    if (aluno.incluiDieta && !aluno.temPlanoDieta) {
+      alertas.push({ clientId: aluno.clientId, nome: aluno.nome, texto: 'Sem plano alimentar montado' });
     }
     if (aluno.flagSaude) {
       alertas.push({ clientId: aluno.clientId, nome: aluno.nome, texto: `Saúde: ${aluno.flagSaude}` });
     }
-    if (temPrescricao) {
+    // Só cobra check-in de quem já tem pelo menos uma prescrição rodando — sem isso, ainda é
+    // aluno novo esperando o profissional montar o plano, não faz sentido nagar check-in.
+    const recebendoServico = (aluno.incluiTreino && aluno.temPlanoTreino) || (aluno.incluiDieta && aluno.temPlanoDieta);
+    if (recebendoServico) {
       const diasCheckin = diasDesde(aluno.ultimoCheckin);
       if (diasCheckin === null || diasCheckin > 14) {
         alertas.push({
@@ -88,7 +97,18 @@ export default function PainelScreen() {
   if (loading || !user || !painel) return <Loading />;
 
   const nutricionista = painel.especialidade === 'nutricionista';
-  const alertas = montarAlertas(painel.alunos, painel.especialidade);
+  const alertas = montarAlertas(painel.alunos);
+  // Visibilidade dos indicadores de treino é por carteira real, não pela especialidade
+  // cadastrada — um nutricionista com algum paciente de plano misto (§45) ainda precisa ver
+  // essas métricas pros pacientes que treinam com ele.
+  const algumComTreino = painel.alunos.some((a) => a.incluiTreino);
+  const algumComDieta = painel.alunos.some((a) => a.incluiDieta);
+  const labelSemPlano =
+    algumComTreino && algumComDieta
+      ? 'Sem plano completo'
+      : algumComDieta
+        ? 'Sem plano alimentar'
+        : 'Sem treino montado';
 
   return (
     <Screen
@@ -121,9 +141,9 @@ export default function PainelScreen() {
       <View style={styles.indicadores}>
         <Indicador value={painel.totalAlunos} label="Pacientes" />
         <Indicador value={painel.ativos} label="Acompanhamentos ativos" destaque />
-        <Indicador value={painel.semPlano} label={nutricionista ? 'Sem plano alimentar' : 'Sem treino montado'} atencao />
+        <Indicador value={painel.semPlano} label={labelSemPlano} atencao />
         <Indicador value={painel.checkinsAtrasados} label="Check-ins atrasados" atencao />
-        {!nutricionista ? <Indicador value={painel.semTreino7d} label="Sem treino há 7 dias" atencao /> : null}
+        {algumComTreino ? <Indicador value={painel.semTreino7d} label="Sem treino há 7 dias" atencao /> : null}
         <Indicador value={painel.leadsPendentes} label="Convites aguardando" />
       </View>
 

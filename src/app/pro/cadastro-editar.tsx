@@ -1,15 +1,22 @@
 import * as DocumentPicker from 'expo-document-picker';
 import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
+import { StyleSheet, View } from 'react-native';
 
-import { Body, Button, Caption, Card, Field, Loading, Screen, SectionTitle } from '@/components/ui';
+import { Body, Button, Caption, Card, Field, Loading, Pill, Screen, SectionTitle } from '@/components/ui';
 import {
   obterMinhaVerificacao,
   solicitarAlteracaoCadastro,
   uploadDocumentoVerificacao,
+  type TipoRegistro,
 } from '@/services/verificacaoService';
 import { useAuthStore } from '@/store/authStore';
-import { Palette } from '@/theme';
+import { Palette, Spacing } from '@/theme';
+
+const TIPOS_REGISTRO: { valor: TipoRegistro; label: string }[] = [
+  { valor: 'CREF', label: 'CREF — Educador físico' },
+  { valor: 'CRN', label: 'CRN — Nutricionista' },
+];
 
 /**
  * Solicitar alteração de cadastro profissional (Guilherme, 14/set): antes disso não tinha
@@ -23,6 +30,7 @@ export default function CadastroEditarScreen() {
   const user = useAuthStore((s) => s.user);
 
   const [carregando, setCarregando] = useState(true);
+  const [tipoRegistro, setTipoRegistro] = useState<TipoRegistro | null>(null);
   const [numeroRegistro, setNumeroRegistro] = useState('');
   const [ufRegistro, setUfRegistro] = useState('');
   const [bio, setBio] = useState('');
@@ -36,6 +44,7 @@ export default function CadastroEditarScreen() {
     if (!user) return;
     obterMinhaVerificacao(user.id).then((v) => {
       if (v) {
+        setTipoRegistro(v.tipoRegistro === 'CREF' || v.tipoRegistro === 'CRN' ? v.tipoRegistro : null);
         setNumeroRegistro(v.numeroRegistro);
         setUfRegistro(v.ufRegistro);
         setBio(v.bio ?? '');
@@ -57,6 +66,10 @@ export default function CadastroEditarScreen() {
 
   async function enviar() {
     if (!user) return;
+    if (!tipoRegistro) {
+      setErro('Escolhe o conselho do registro (CREF ou CRN).');
+      return;
+    }
     if (!numeroRegistro.trim() || ufRegistro.trim().length !== 2) {
       setErro('Preenche o número do registro e a UF (2 letras).');
       return;
@@ -66,6 +79,7 @@ export default function CadastroEditarScreen() {
     try {
       const documentoPath = documento ? await uploadDocumentoVerificacao(user.id, documento) : undefined;
       await solicitarAlteracaoCadastro(user.id, {
+        tipoRegistro,
         numeroRegistro: numeroRegistro.trim(),
         ufRegistro: ufRegistro.trim().toUpperCase(),
         bio: bio.trim(),
@@ -108,6 +122,21 @@ export default function CadastroEditarScreen() {
       </Card>
 
       <Card>
+        <SectionTitle>Conselho</SectionTitle>
+        <Caption>Qual registro este número é? Some um segundo registro depois se precisar.</Caption>
+        <View style={styles.pills}>
+          {TIPOS_REGISTRO.map((t) => (
+            <Pill
+              key={t.valor}
+              label={t.label}
+              active={tipoRegistro === t.valor}
+              onPress={() => setTipoRegistro(t.valor)}
+            />
+          ))}
+        </View>
+      </Card>
+
+      <Card>
         <SectionTitle>Registro no conselho</SectionTitle>
         <Field
           label="Número do CREF/CRN"
@@ -139,3 +168,11 @@ export default function CadastroEditarScreen() {
     </Screen>
   );
 }
+
+const styles = StyleSheet.create({
+  pills: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Spacing.sm,
+  },
+});

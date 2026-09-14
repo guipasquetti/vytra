@@ -15,6 +15,14 @@ export type AlunoVinculado = {
   planoSolicitadoNome: string | null;
   /** Data da última série registrada, se houver. */
   ultimoTreino: string | null;
+  /**
+   * Do plano CONFIRMADO (`sub.plan_id`), não do solicitado — o que o par paciente↔profissional
+   * realmente contratou (§45 do handoff). Falso/falso enquanto não há plano confirmado; não
+   * usar `professionals.especialidade` pra isso, um profissional pode vender planos mistos
+   * (ex.: nutricionista que também monta treino por experiência, sem CREF).
+   */
+  incluiTreino: boolean;
+  incluiDieta: boolean;
 };
 
 /** Alunos do profissional, com sinal de atividade recente (quem sumiu aparece sem data). */
@@ -36,8 +44,10 @@ export async function listarAlunos(professionalId: string): Promise<AlunoVincula
   const [{ data: perfis }, { data: planos }, { data: logs }] = await Promise.all([
     supabase.from('profiles').select('id, nome').in('id', clientIds),
     planIds.length
-      ? supabase.from('professional_plans').select('id, nome').in('id', planIds)
-      : Promise.resolve({ data: [] as Pick<PlanoProfissional, 'id' | 'nome'>[] }),
+      ? supabase.from('professional_plans').select('id, nome, inclui_treino, inclui_dieta').in('id', planIds)
+      : Promise.resolve({
+          data: [] as Pick<PlanoProfissional, 'id' | 'nome' | 'inclui_treino' | 'inclui_dieta'>[],
+        }),
     supabase
       .from('workout_logs')
       .select('client_id, session_date')
@@ -50,16 +60,21 @@ export async function listarAlunos(professionalId: string): Promise<AlunoVincula
     if (!ultimoPorCliente.has(log.client_id)) ultimoPorCliente.set(log.client_id, log.session_date);
   }
 
-  return subscriptions.map((sub) => ({
-    subscriptionId: sub.id,
-    clientId: sub.patient_id,
-    nome: perfis?.find((p) => p.id === sub.patient_id)?.nome || 'Aluno',
-    status: sub.status,
-    planoNome: planos?.find((p) => p.id === sub.plan_id)?.nome ?? null,
-    planoSolicitadoId: sub.plano_solicitado_id,
-    planoSolicitadoNome: planos?.find((p) => p.id === sub.plano_solicitado_id)?.nome ?? null,
-    ultimoTreino: ultimoPorCliente.get(sub.patient_id) ?? null,
-  }));
+  return subscriptions.map((sub) => {
+    const planoConfirmado = planos?.find((p) => p.id === sub.plan_id);
+    return {
+      subscriptionId: sub.id,
+      clientId: sub.patient_id,
+      nome: perfis?.find((p) => p.id === sub.patient_id)?.nome || 'Aluno',
+      status: sub.status,
+      planoNome: planoConfirmado?.nome ?? null,
+      planoSolicitadoId: sub.plano_solicitado_id,
+      planoSolicitadoNome: planos?.find((p) => p.id === sub.plano_solicitado_id)?.nome ?? null,
+      ultimoTreino: ultimoPorCliente.get(sub.patient_id) ?? null,
+      incluiTreino: planoConfirmado?.inclui_treino ?? false,
+      incluiDieta: planoConfirmado?.inclui_dieta ?? false,
+    };
+  });
 }
 
 export type ProfissionalVinculado = {
@@ -71,6 +86,10 @@ export type ProfissionalVinculado = {
   status: string;
   verificado: boolean;
   bio: string | null;
+  /** CREF/CRN do registro verificado — não confundir com `especialidade` (§45 do handoff). */
+  tipoRegistro: string | null;
+  incluiTreino: boolean;
+  incluiDieta: boolean;
 };
 
 /** Profissionais que atendem este aluno — pode ser mais de um (relação N:N). */
@@ -91,22 +110,59 @@ export async function listarMeusProfissionais(clientId: string): Promise<Profiss
     supabase.from('profiles').select('id, nome').in('id', professionalIds),
     supabase.from('professionals').select('id, especialidade').in('id', professionalIds),
     planIds.length
-      ? supabase.from('professional_plans').select('id, nome').in('id', planIds)
-      : Promise.resolve({ data: [] as Pick<PlanoProfissional, 'id' | 'nome'>[] }),
+      ? supabase.from('professional_plans').select('id, nome, inclui_treino, inclui_dieta').in('id', planIds)
+      : Promise.resolve({
+          data: [] as Pick<PlanoProfissional, 'id' | 'nome' | 'inclui_treino' | 'inclui_dieta'>[],
+        }),
     obterSelosProfissionais(professionalIds),
   ]);
 
-  return subscriptions.map((sub) => ({
-    subscriptionId: sub.id,
-    professionalId: sub.professional_id,
-    nome: perfis?.find((p) => p.id === sub.professional_id)?.nome || 'Profissional',
-    especialidade:
-      profissionais?.find((p) => p.id === sub.professional_id)?.especialidade ?? '',
-    planoNome: planos?.find((p) => p.id === sub.plan_id)?.nome ?? null,
-    status: sub.status,
-    verificado: selos.get(sub.professional_id)?.verificado ?? false,
-    bio: selos.get(sub.professional_id)?.bio ?? null,
-  }));
+  return subscriptions.map((sub) => {
+    const plano = planos?.find((p) => p.id === sub.plan_id);
+    return {
+      subscriptionId: sub.id,
+      professionalId: sub.professional_id,
+      nome: perfis?.find((p) => p.id === sub.professional_id)?.nome || 'Profissional',
+      especialidade:
+        profissionais?.find((p) => p.id === sub.professional_id)?.especialidade ?? '',
+      planoNome: plano?.nome ?? null,
+      status: sub.status,
+      verificado: selos.get(sub.professional_id)?.verificado ?? false,
+      bio: selos.get(sub.professional_id)?.bio ?? null,
+      tipoRegistro: selos.get(sub.professional_id)?.tipoRegistro ?? null,
+      incluiTreino: plano?.inclui_treino ?? false,
+      incluiDieta: plano?.inclui_dieta ?? false,
+    };
+  });
+}
+
+/**
+ * O que o aluno tem contratado, olhando TODAS as assinaturas ativas (§45 — pode ter mais de um
+ * profissional, cada um cobrindo uma parte). União: se qualquer assinatura ativa inclui treino,
+ * o aluno tem acesso a treino — usado pra decidir quais abas mostrar em `aluno/_layout.tsx`.
+ * Enquanto nenhuma assinatura tem plano CONFIRMADO ainda (`plan_id` nulo — onboarding em
+ * andamento, profissional ainda não confirmou), devolve os dois `true`: nada pra esconder
+ * ainda, mesmo comportamento de antes desta mudança.
+ */
+export async function obterCapacidadesAluno(clientId: string): Promise<{ treino: boolean; dieta: boolean }> {
+  const { data: subs } = await supabase
+    .from('subscriptions')
+    .select('plan_id')
+    .eq('patient_id', clientId)
+    .eq('status', 'ativa');
+
+  const planIds = (subs ?? []).map((s) => s.plan_id).filter((id): id is string => !!id);
+  if (!planIds.length) return { treino: true, dieta: true };
+
+  const { data: planos } = await supabase
+    .from('professional_plans')
+    .select('inclui_treino, inclui_dieta')
+    .in('id', planIds);
+
+  return {
+    treino: (planos ?? []).some((p) => p.inclui_treino),
+    dieta: (planos ?? []).some((p) => p.inclui_dieta),
+  };
 }
 
 /**

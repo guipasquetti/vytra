@@ -15,8 +15,8 @@ import { useAuthStore } from '@/store/authStore';
 import { Palette, Spacing } from '@/theme';
 
 const LINKS_CONSELHO: Record<string, string> = {
-  personal_trainer: 'https://www.confef.org.br',
-  nutricionista: 'https://www.cfn.org.br',
+  CREF: 'https://www.confef.org.br',
+  CRN: 'https://www.cfn.org.br',
 };
 
 /**
@@ -108,7 +108,8 @@ function SolicitacaoCard({
       <Caption color={Palette.text}>{solicitacao.professionalEmail}</Caption>
       <Caption>{rotuloEspecialidade(solicitacao.especialidade)}</Caption>
       <Caption color={Palette.text}>
-        Registro: {solicitacao.numeroRegistro}/{solicitacao.ufRegistro}
+        Registro: {solicitacao.tipoRegistro ? `${solicitacao.tipoRegistro} ` : ''}
+        {solicitacao.numeroRegistro}/{solicitacao.ufRegistro}
       </Caption>
       {solicitacao.cpf ? <Caption>CPF: {solicitacao.cpf}</Caption> : null}
       {solicitacao.bio ? <Caption>{solicitacao.bio}</Caption> : null}
@@ -118,11 +119,11 @@ function SolicitacaoCard({
         {urlDocumento ? (
           <Button label="Ver documento" variant="ghost" onPress={() => Linking.openURL(urlDocumento)} />
         ) : null}
-        {LINKS_CONSELHO[solicitacao.especialidade] ? (
+        {solicitacao.tipoRegistro && LINKS_CONSELHO[solicitacao.tipoRegistro] ? (
           <Button
             label="Conferir no site do conselho"
             variant="ghost"
-            onPress={() => Linking.openURL(LINKS_CONSELHO[solicitacao.especialidade])}
+            onPress={() => Linking.openURL(LINKS_CONSELHO[solicitacao.tipoRegistro!])}
           />
         ) : null}
       </View>

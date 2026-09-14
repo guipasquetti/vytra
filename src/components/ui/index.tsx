@@ -367,11 +367,20 @@ export function RemoveButton({ onPress, label = 'Remover' }: { onPress: () => vo
  * que na cor da marca (`Palette.accent`, o verde-menta "Sinal Vital"). Aparece só quando
  * `professional_verificacoes.status === 'aprovado'` (via RPC `obter_selo_profissionais` pro
  * paciente, ou `obterMinhaVerificacao` pro próprio profissional — nunca inventado no client).
+ * `label` (ex.: "Nutricionista", via `rotuloTipoRegistro`) é opcional — sem ele, só o ícone
+ * redondo, pra contextos compactos onde o nome do conselho já está óbvio por outro lado.
  */
-export function SeloVerificado({ size = 16 }: { size?: number }) {
-  return (
+export function SeloVerificado({ label, size = 16 }: { label?: string | null; size?: number }) {
+  const icone = (
     <View style={[styles.selo, { width: size, height: size, borderRadius: size / 2 }]}>
-      <Ionicons name="checkmark" size={size * 0.7} color={Palette.background} />
+      <Ionicons name="checkmark-sharp" size={size * 0.65} color={Palette.background} />
+    </View>
+  );
+  if (!label) return icone;
+  return (
+    <View style={styles.seloPill}>
+      {icone}
+      <Text style={styles.seloLabel}>{label}</Text>
     </View>
   );
 }
@@ -594,5 +603,14 @@ const styles = StyleSheet.create({
     backgroundColor: Palette.accent,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  seloPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  seloLabel: {
+    color: Palette.accent,
+    ...monoStyle(FontSize.caption, true),
   },
 });
