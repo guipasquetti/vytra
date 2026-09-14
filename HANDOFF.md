@@ -3762,3 +3762,44 @@ kickoff (§2/§7/§14) — este arquivo só dá o próximo passo concreto, não 
 - **Deploy publicado nos dois hosts (14/set)**: mesmo pipeline de sempre. Bundle
   `entry-2bfa6ece7f3991858ba6458bb34e3645.js`, hash igual e 200 nos dois
   (`app-treino.expo.app`, `app.vytraoficial.com.br`).
+
+## 49. Anamnese: sessão expirando em silêncio durante o onboarding (14/set)
+
+⚠️→✅ **Achado real do Guilherme, corrigido.** Uma paciente do Tassis testou o link de convite
+oficial (`app.vytraoficial.com.br` — não confirmado se foi esse host ou `app-treino.expo.app`,
+mas a causa é a mesma nos dois, é o mesmo código/backend), preencheu a anamnese inteira (10
+seções, 56 campos) + escolheu o plano, e "Enviar respostas" falhou com a mensagem genérica
+"Não consegui enviar suas respostas.".
+
+**Causa raiz**: [`submeter_anamnese_autenticado`](supabase/migrations/20260904_anamnese_pos_login.sql)
+é `anon`-chamável por design (mesmo padrão do fluxo de convite, §0) e só faz
+`if v_uid is null then return false; end if;` — uma sessão inválida na hora do envio não vira
+erro de rede/HTTP, a RPC roda como anon e devolve `false` em silêncio. O formulário é longo
+(pode levar minutos pra preencher) e o client Supabase só reforça o auto-refresh de token em
+foreground/background via `AppState` no **nativo** ([`lib/supabase.ts`](src/lib/supabase.ts))
+— no **web**, que é como todo paciente acessa hoje (§2, v1.0 Web), não tem esse reforço, então
+um token expirando com a aba em segundo plano (troca de app, tela bloqueada) pode não renovar a
+tempo. Pior: nada no formulário salvava rascunho, então uma paciente que passasse por isso
+arriscava perder as 56 respostas inteiras.
+
+**Corrigido** em [`onboarding-anamnese.tsx`](src/components/onboarding-anamnese.tsx):
+- **Rascunho local** (`AsyncStorage`, chave `anamnese-rascunho:{userId}`, mesmo padrão de
+  `lista-compras-marcados:{userId}`, §25) — salvo com debounce de 400ms a cada mudança de
+  resposta/plano, carregado no mount (com banner "Recuperamos suas respostas salvas neste
+  aparelho." quando havia algo salvo), removido só depois do envio ter sucesso de verdade.
+- **Checagem de sessão antes de enviar**: `supabase.auth.getSession()` (que tenta renovar o
+  token se ainda for possível) antes de chamar a RPC — se não houver `session.user`, mostra erro
+  acionável ("sua sessão expirou, atualiza a página e entra de novo, suas respostas ficam
+  salvas") em vez de deixar a RPC falhar em silêncio.
+- Sem migration, sem mudança de RLS — é só resiliência do lado do client. `npx tsc --noEmit`
+  limpo (precisou `npm install`, `node_modules` não existia neste clone).
+
+**Não testado logado com paciente real** (mesma regra de sempre, nunca senha de conta nenhuma
+digitada por agente). Commitado (`4a74170`) e **empurrado pro `origin/main`, mas ainda sem
+deploy** (`eas deploy`/`vercel deploy`) — pendente, ver próxima ação.
+
+⚠️ **Hipótese, não causa confirmada**: não é certeza que a sessão expirada é a explicação
+completa — é a mais consistente com o comportamento observado (RPC retorna `false`, não lança
+erro), mas não foi possível reproduzir com a paciente real (não se tem acesso ao aparelho dela).
+Se o mesmo erro voltar a acontecer mesmo com a correção acima (ou seja, com sessão válida
+confirmada), o próximo passo é logar o corpo do erro em vez de só mostrar mensagem genérica.
