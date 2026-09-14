@@ -3,12 +3,18 @@ import { Pressable, StyleSheet, Switch, TextInput, View } from 'react-native';
 
 import { Body, Button, Caption, Card, EmptyState, Loading, Screen, SectionTitle } from '@/components/ui';
 import {
+  possuiDeclaracao,
+  registrarDeclaracao,
+  TEXTO_DECLARACAO_TREINO_SEM_CREF,
+} from '@/services/declaracaoService';
+import {
   alternarPlanoAtivo,
   atualizarPlano,
   criarPlano,
   listarPlanos,
   type PlanoProfissional,
 } from '@/services/professionalService';
+import { obterMinhaVerificacao } from '@/services/verificacaoService';
 import { useAuthStore } from '@/store/authStore';
 import { FontSize, Palette, Radius, RoleColors, Spacing } from '@/theme';
 
@@ -100,6 +106,7 @@ function PlanoCard({ plano, onMudou }: { plano: PlanoProfissional; onMudou: () =
     return (
       <PlanoForm
         titulo="Editar serviço"
+        professionalId={plano.professional_id}
         valores={valoresIniciais(plano)}
         onCancelar={() => setEditando(false)}
         onSalvar={async (dados) => {
@@ -152,6 +159,7 @@ function NovoPlanoForm({
   return (
     <PlanoForm
       titulo="Novo serviço"
+      professionalId={professionalId}
       valores={valoresIniciais()}
       onCancelar={onCancelar}
       onSalvar={async (dados) => {
@@ -164,11 +172,13 @@ function NovoPlanoForm({
 
 function PlanoForm({
   titulo,
+  professionalId,
   valores,
   onSalvar,
   onCancelar,
 }: {
   titulo: string;
+  professionalId: string;
   valores: PlanoFormValues;
   onSalvar: (dados: {
     nome: string;
@@ -187,9 +197,63 @@ function PlanoForm({
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
 
+  // Blindagem de responsabilidade (§48 do handoff): habilitar treino sem CREF exige uma
+  // declaração explícita do profissional, registrada com data/hora — nunca sozinho pelo
+  // toggle. `temCref === null` enquanto carrega: trata como "precisa declarar" até confirmar
+  // o contrário, nunca o inverso (defesa em profundidade, não vaza um instante de UI liberada
+  // à toa).
+  const [temCref, setTemCref] = useState<boolean | null>(null);
+  const [jaDeclarou, setJaDeclarou] = useState(false);
+  const [mostrandoDeclaracao, setMostrandoDeclaracao] = useState(false);
+  const [declarando, setDeclarando] = useState(false);
+
+  useEffect(() => {
+    Promise.all([
+      obterMinhaVerificacao(professionalId),
+      possuiDeclaracao(professionalId, 'treino_sem_cref'),
+    ]).then(([verificacao, declarado]) => {
+      setTemCref(verificacao?.tipoRegistro === 'CREF');
+      setJaDeclarou(declarado);
+    });
+  }, [professionalId]);
+
+  const precisaDeclarar = temCref === false && !jaDeclarou;
+
+  function alternarTreino(valor: boolean) {
+    if (!valor) {
+      setIncluiTreino(false);
+      return;
+    }
+    if (precisaDeclarar) {
+      setMostrandoDeclaracao(true);
+      return;
+    }
+    setIncluiTreino(true);
+  }
+
+  async function confirmarDeclaracao() {
+    setDeclarando(true);
+    try {
+      await registrarDeclaracao(professionalId, 'treino_sem_cref', TEXTO_DECLARACAO_TREINO_SEM_CREF);
+      setJaDeclarou(true);
+      setIncluiTreino(true);
+      setMostrandoDeclaracao(false);
+    } catch (e) {
+      setErro(e instanceof Error ? e.message : 'Não consegui registrar a declaração.');
+    } finally {
+      setDeclarando(false);
+    }
+  }
+
   async function salvar() {
     if (!nome.trim()) {
       setErro('Dê um nome ao plano.');
+      return;
+    }
+    // Defesa em profundidade: a UI já impede chegar aqui com treino ligado sem declarar, mas
+    // confere de novo antes de gravar.
+    if (incluiTreino && precisaDeclarar) {
+      setErro('Precisa declarar responsabilidade pra habilitar treino sem CREF.');
       return;
     }
     setErro(null);
@@ -241,7 +305,8 @@ function PlanoForm({
         <Caption color={Palette.text}>Inclui treino</Caption>
         <Switch
           value={incluiTreino}
-          onValueChange={setIncluiTreino}
+          onValueChange={alternarTreino}
+          disabled={temCref === null}
           trackColor={{ true: Palette.green, false: Palette.surfaceElevated }}
         />
       </View>
@@ -253,6 +318,25 @@ function PlanoForm({
           trackColor={{ true: Palette.green, false: Palette.surfaceElevated }}
         />
       </View>
+
+      {mostrandoDeclaracao ? (
+        <View style={styles.declaracao}>
+          <Caption color={Palette.text}>{TEXTO_DECLARACAO_TREINO_SEM_CREF}</Caption>
+          <View style={styles.switchRow}>
+            <Button
+              label="Concordo e habilito"
+              onPress={confirmarDeclaracao}
+              loading={declarando}
+            />
+            <Button
+              label="Cancelar"
+              variant="ghost"
+              onPress={() => setMostrandoDeclaracao(false)}
+              disabled={declarando}
+            />
+          </View>
+        </View>
+      ) : null}
 
       {erro ? <Caption color={Palette.danger}>{erro}</Caption> : null}
 
@@ -267,6 +351,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    gap: Spacing.sm,
+  },
+  declaracao: {
+    backgroundColor: Palette.surfaceElevated,
+    borderRadius: Radius.md,
+    padding: Spacing.md,
     gap: Spacing.sm,
   },
   nome: {

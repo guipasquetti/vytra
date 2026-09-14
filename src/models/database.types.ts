@@ -459,6 +459,38 @@ export type Database = {
           },
         ]
       }
+      declaracoes_profissional: {
+        Row: {
+          created_at: string
+          id: string
+          professional_id: string
+          texto: string
+          tipo: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          professional_id: string
+          texto: string
+          tipo: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          professional_id?: string
+          texto?: string
+          tipo?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "declaracoes_profissional_professional_id_fkey"
+            columns: ["professional_id"]
+            isOneToOne: false
+            referencedRelation: "professionals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       exercicios_ilustracoes: {
         Row: {
           atualizado_em: string

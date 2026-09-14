@@ -1,8 +1,8 @@
 # Vytra — Handoff
 
 > Documento de contexto para replicar o estado do projeto em outro chat.
-> Última atualização: 14/Setembro/2026 — drift de segurança dos 4 helpers RPC corrigido, selo
-> com sigla (EF/NT) em vez de nome completo, ver §47.
+> Última atualização: 14/Setembro/2026 — gate de declaração de responsabilidade pra treino sem
+> CREF, mais esqueleto do termo de consentimento/isenção, ver §48.
 
 > **Fonte canônica:** este arquivo, na raiz do repositório. Todo agente (Codex ou Claude) deve lê-lo antes de alterar o projeto e atualizá-lo ao concluir mudanças relevantes, decisões, migrações, configuração de infraestrutura ou bloqueios.
 
@@ -3170,6 +3170,12 @@ Reescrita de [`checkin-flow.tsx`](src/components/checkin-flow.tsx).
   `remada-curvada-com-barra.png` (homem do Leste Asiático), `agachamento-goblet.png` (mulher do
   Leste Asiático) e `rosca-direta-barra-ez.png` (homem brasileiro pardo/mestiço). As poses foram
   revisadas para manter mãos, carga e trajetória coerentes entre início e fim.
+- ⚠️ **Regra obrigatória de seta (Guilherme, 14/set):** a seta teal é um marcador da trajetória
+  do movimento no próprio exercício, nunca um conector de “antes → depois” entre as duas poses.
+  Deve ficar junto da carga, cabo, alavanca ou membro ativo e seguir sua trajetória biomecânica;
+  não pode ocupar o espaço central nem sugerir que a figura da esquerda se desloca até a direita.
+  O lote diverso foi corrigido conforme essa regra: press junto aos halteres, remada junto à barra,
+  goblet junto ao quadril/carga e rosca EZ junto ao antebraço/barra.
 - ✅ **Integração do lote diverso (14/set):** `src/lib/exerciseIllustrations.ts` resolve os quatro
   exercícios localmente; `generate-ai-plan` passa a preferi-los e
   `generate-exercise-illustration` os reconhece como estáticos, evitando geração dinâmica
@@ -3605,4 +3611,56 @@ continua com o nome por extenso ali — é formulário, não selo, clareza impor
 compacidade nesse contexto.
 - **Deploy publicado nos dois hosts (14/set)**: mesmo pipeline de sempre. Bundle
   `entry-d27b58cf2196c7e394f91b952e5dfd68.js`, hash igual e 200 nos dois
+  (`app-treino.expo.app`, `app.vytraoficial.com.br`).
+
+## 48. Blindagem de responsabilidade: declaração de treino sem CREF (14/set)
+
+✅ Pedido do Guilherme, continuação direta do §46/§47: o toggle "inclui treino" em
+`pro/planos.tsx` era **livre** — qualquer profissional habilitava, sem nenhuma checagem contra
+o registro verificado. Como resposta a "como separar o que ele pode cadastrar como nutrição
+vs treino": a separação não é um bloqueio estrutural (`professional_plans` continua uma
+tabela só, com os dois booleans) — é uma **declaração de responsabilidade registrada**, que
+só aparece quando falta a licença formal pro módulo. Quem tem CREF nunca vê nada disso;
+quem não tem, precisa concordar explicitamente antes do toggle ligar.
+
+- **Migração** [`20260914_declaracoes_profissional.sql`](supabase/migrations/20260914_declaracoes_profissional.sql),
+  aplicada em produção: tabela `declaracoes_profissional` (`professional_id`, `tipo` — texto +
+  CHECK, hoje só `'treino_sem_cref'`, extensível — `texto`, `created_at`). **Imutável de
+  propósito**: só policy de `select`/`insert`, sem `update`/`delete`, mesmo padrão de
+  `cobranca_eventos` — é rastro de auditoria, não estado editável. O `texto` grava o conteúdo
+  EXATO aceito naquele momento (não um ID de versão), então mudar a redação depois não altera
+  o que já foi aceito.
+- **Serviço novo** [`declaracaoService.ts`](src/services/declaracaoService.ts):
+  `possuiDeclaracao`/`registrarDeclaracao`, mais a constante
+  `TEXTO_DECLARACAO_TREINO_SEM_CREF` — texto fixo, **rascunho, não revisado por advogado**
+  (mesma ressalva de sempre pra conteúdo jurídico neste projeto).
+- **UI** em [`pro/planos.tsx`](src/app/pro/planos.tsx): `PlanoForm` carrega
+  `obterMinhaVerificacao` (pra saber `tipoRegistro`) e `possuiDeclaracao` ao abrir. Ligar o
+  switch "Inclui treino" quando `tipoRegistro !== 'CREF'` e ainda não declarou não liga direto
+  — abre um card com o texto completo e um botão "Concordo e habilito"; só aí grava a
+  declaração e liga o switch. Depois da 1ª vez, não pede de novo (checa `possuiDeclaracao`).
+  Segunda checagem no `salvar()` (defesa em profundidade) bloqueia gravar `inclui_treino: true`
+  sem declaração, mesmo que a UI tenha algum jeito de ser contornada.
+- **Retroativo: não aplicado.** Os planos do Tassis que já têm `inclui_treino=true` desde
+  antes desta feature (`Padrão (migração)`, etc.) continuam funcionando sem declaração — ele
+  nunca vai ser barrado retroativamente por algo que não existia quando ele configurou. A
+  declaração só é pedida na próxima vez que ele mexer nesse toggle (editar um plano existente
+  ou criar um novo com treino). Decisão consciente, mesmo princípio já usado em outras
+  migrações do projeto (não travar o que já funciona, só o que muda daqui pra frente).
+- `npx tsc --noEmit` limpo. `get_advisors(security)` depois da migração: tabela nova sem
+  achado novo (RLS com policy, nada exposto a mais). **Não testado logado como Tassis** (não
+  tenho a senha dele) — o fluxo completo (tentar ligar treino → ver o card → concordar → switch
+  liga → declaração persiste na próxima visita) precisa de conferência manual dele.
+
+✅ **Caminho pro termo de consentimento + isenção de responsabilidade**, pedido junto:
+[`docs/legal/termo-consentimento.md`](docs/legal/termo-consentimento.md) — esqueleto de
+seções (papel da plataforma, responsabilidade do profissional, reconhecimento do paciente,
+sem garantia de resultado, LGPD, uso de imagem, cobrança/cancelamento, foro), **não é texto
+final nem parecer jurídico**, precisa de advogado antes de qualquer publicação. Arquivo
+separado do handoff porque é conteúdo (copy jurídica), não decisão/estado — mesmo padrão já
+usado pra `docs/marca/BRAND.md`. Pendência em si continua a mesma já registrada desde o
+kickoff (§2/§7/§14) — este arquivo só dá o próximo passo concreto, não fecha a pendência.
+
+- **Deploy publicado nos dois hosts (14/set)**: mesmo pipeline de sempre. Bundle
+  `entry-2bfa6ece7f3991858ba6458bb34e3645.js`, hash igual e 200 nos dois
   (`app-treino.expo.app`, `app.vytraoficial.com.br`).
