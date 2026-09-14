@@ -1,9 +1,8 @@
 # Vytra — Handoff
 
 > Documento de contexto para replicar o estado do projeto em outro chat.
-> Última atualização: 12/Setembro/2026 — deploy nos dois hosts com anexo de paciente (§35),
-> guia de câmera com silhuetas + 4º ângulo (§36/§39), check-in reformulado de uma vez só (§38)
-> e correção de check-in dentro de 24h (§37).
+> Última atualização: 14/Setembro/2026 — landing (`vytraoficial.com.br`) achada fora do ar
+> (deploy Ready servindo 404) e corrigida com redeploy, ver §43.
 
 > **Fonte canônica:** este arquivo, na raiz do repositório. Todo agente (Codex ou Claude) deve lê-lo antes de alterar o projeto e atualizá-lo ao concluir mudanças relevantes, decisões, migrações, configuração de infraestrutura ou bloqueios.
 
@@ -1594,8 +1593,10 @@ signup) eram sintoma; a causa é que essa via não serve para o caso de uso. Ver
   - **Verificado**: renderização real no navegador (desktop e viewport 375px), zero erro de
     console, zero overflow horizontal (`scrollWidth === clientWidth`), as três fontes com
     status `loaded`, e os cabeçalhos conferidos na resposta HTTP de produção.
-  - **Pendências**: apontar o DNS (acima); a LP não captura e-mail (sem backend e sem caixa
-    de e-mail no domínio ainda, ver passos 2 e 3 da ordem de execução do §7).
+  - ~~**Pendências**: apontar o DNS (acima)~~ — **feito, ver §43 (14/set)**: DNS já estava
+    certo, o problema era deploy com build quebrado servindo 404 silenciosamente. A LP não
+    captura e-mail (sem backend e sem caixa de e-mail no domínio ainda, ver passos 2 e 3 da
+    ordem de execução do §7) — isso segue pendente.
 
 
 ## 9. Escopo funcional v1 (proposto, não implementado)
@@ -2048,7 +2049,14 @@ API com e-mail qualquer — mas sem convite não ganha assinatura, e a RLS não 
 (verificado: usuário autenticado avulso enxerga zero linhas em todas as tabelas). Aceitável no
 piloto, **não aceitável em escala**.
 
-**Etapa 2 — quando houver domínio.** Provedor SMTP (a doc lista Resend, AWS SES, Postmark,
+✅ **Etapa 2 resolvida (14/set)**, agora que o domínio `vytraoficial.com.br` existe: Guilherme
+verificou `vytraoficial.com.br` no Resend (mesma conta já usada pro Oli — tier grátis ampliou pra
+3 domínios por conta em ago/2026, não precisou pagar nem criar conta nova) e configurou SMTP no
+Supabase dashboard (host `smtp.resend.com`, porta `587`, usuário `resend`, senha = API key,
+remetente no domínio verificado) + `https://app.vytraoficial.com.br/**` nas Redirect URLs. Ver
+§42 pro fluxo de "esqueci minha senha" que passou a funcionar com isso.
+
+**Etapa 2 original (contexto histórico).** Provedor SMTP (a doc lista Resend, AWS SES, Postmark,
 SendGrid, ZeptoMail, Brevo). Com Resend: host `smtp.resend.com`, porta `587`, usuário `resend`,
 senha = chave de API, remetente no domínio verificado.
 
@@ -2086,7 +2094,7 @@ Não remover nenhuma URL antiga na mesma etapa do primeiro corte.
 | --- | --- | --- |
 | Marca no app | `name: Vytra`, `scheme: vytra`, ícones e splash Vytra | `slug` continua `app-treino` até o projeto EAS ser renomeado no dashboard |
 | GitHub | ✅ repo renomeado para `https://github.com/guipasquetti/vytra`; homepage = `https://vytraoficial.com.br`; remote local atualizado | manter URL anterior como redirecionamento do GitHub |
-| Landing | ✅ projeto Vercel `vytra`, deploy de produção pronto | publicar DNS da raiz e confirmar HTTPS |
+| Landing | ✅ projeto Vercel `vytra`, deploy de produção pronto e servindo 200 em `vytraoficial.com.br`/`www` (confirmado 14/set, ver §43) | nenhuma — DNS e deploy confirmados |
 | Domínios na Vercel | `vytraoficial.com.br` e `www.vytraoficial.com.br` vinculados ao projeto `vytra` | DNS ainda aponta para Registro.br padrão; configurar A da raiz e `www` conforme Vercel |
 | App EAS | produção em `https://app-treino.expo.app`; EAS project `@guipasquetti/app-treino` / `f37244c8-045f-4fff-89de-ecf05f7872ce` | manter como rollback até o novo host passar nos testes |
 | App Vercel | ✅ projeto separado `vytra-app`, bundle **em paridade com o Expo** (mesmo hash de `entry-*.js`) e rotas dinâmicas corrigidas via `public/vercel.json` (ver item dedicado abaixo) | deploy via `vercel deploy dist --project vytra-app --prod --yes` a cada `expo export`; não usar `--prebuilt` |
@@ -2106,7 +2114,8 @@ Não remover nenhuma URL antiga na mesma etapa do primeiro corte.
 
 ### Ordem de execução e rollback
 
-1. Publicar/validar DNS da landing. Verificar `https://vytraoficial.com.br` e `www`.
+1. ~~Publicar/validar DNS da landing.~~ Feito — verificado `https://vytraoficial.com.br` e
+   `www` respondendo 200 (14/set, ver §43).
 2. Completar DNS/SSL do app na Vercel. Verificar login, refresh de sessão, deep link e convite
    em `app.vytraoficial.com.br`.
 3. Adicionar o novo app URL à configuração de Auth do Supabase; testar login e convite; então
@@ -2758,11 +2767,12 @@ tools), mesma técnica já usada no WebDiet — mais preciso que ler site de mar
 
 Gaps reais encontrados, sem prioridade decidida (não tomei essa decisão), ordenados por quantos
 concorrentes convergem: **financeiro/cobrança** (4/5, já em construção), ~~**prontuário
-evolutivo**~~ (3/6 — ✅ **fechado 12/set**, ver §33), **IA em prescrição** (3/5, já descartado
-por custo de infra), **anexo de paciente** (2/6, já priorizado), **chat in-app**, **diário
-alimentar livre**, **hábito+badge além de treino**, **app com marca própria entregue como
-produto pronto** (2/5 cada) — e mais sete achados de sinal isolado (1 concorrente cada),
-listados no artifact pra não perder o achado.
+evolutivo**~~ (3/6 — ✅ **fechado 12/set**, ver §33), ~~**IA em prescrição**~~ (3/5 — reaberto
+14/set, ver §40: descarte original era "custo de infra" nunca medido de verdade; mitigado com
+modelo barato, gate de revisão obrigatória e tabela de auditoria de custo real), **anexo de
+paciente** (2/6, já priorizado), **chat in-app**, **diário alimentar livre**, **hábito+badge além
+de treino**, **app com marca própria entregue como produto pronto** (2/5 cada) — e mais sete
+achados de sinal isolado (1 concorrente cada), listados no artifact pra não perder o achado.
 Vytra já ganha em 2 pontos que nenhum dos 5 tem: lista de compras dinâmica e o funil
 lead→convite→cadastro automático.
 
@@ -3108,6 +3118,40 @@ Reescrita de [`checkin-flow.tsx`](src/components/checkin-flow.tsx).
   preenchimento, mesma linguagem de "cor é o único sinal" do §19/§32. Verificado visualmente
   numa rota de depuração temporária (removida depois): as duas formas são legíveis como pessoa
   parada, frontal com braços/pernas separados, lateral com pé apontando pra frente.
+- ✅ **Redesenho solicitado pelo Guilherme (12/set):** as silhuetas geométricas foram
+  substituídas por seis modelos-guia PNG transparentes em `assets/checkin-guides/`, na mesma
+  linguagem visual aprovada das ilustrações de exercício: mulher e homem, cada um com frente,
+  costas e perfil. `CameraGuiada` recebe `profiles.sexo` pelo `CheckinFlow` e mostra o
+  modelo masculino quando o perfil é `masculino`; nos demais casos usa o feminino. Frente e
+  costas têm poses próprias; o perfil direito é o espelho exato do esquerdo. Todos os PNGs têm
+  `alpha` confirmado; `npx tsc --noEmit` e `npx expo export --platform web` passaram.
+- ✅ **Referência de foto antes da câmera (12/set):** os seis modelos-guia acima ficam
+  preservados em `assets/checkin-guides/` para uso sobre a câmera; uma segunda biblioteca,
+  `assets/checkin-references/`, guarda seis PNGs transparentes com as mesmas poses
+  padronizadas (mulher/homem × frente/costas/perfil) em traje de banho preto discreto. Antes
+  de abrir a câmera — e portanto antes de pedir sua permissão — `CameraGuiada` mostra a
+  referência correspondente ao ângulo e a `profiles.sexo` do paciente (perfil direito é o
+  espelho do esquerdo), além da orientação de manter o corpo inteiro visível. A pessoa então
+  escolhe “Abrir câmera”; traje de banho **ou** roupa de treino ajustada são apresentados como
+  opções de referência, sem obrigatoriedade. PNGs conferidos: 1024×1536, `alpha` presente;
+  `npx tsc --noEmit` e `npx expo export --platform web` passaram. Mudança local, ainda sem
+  nova estrutura de banco/RLS nem o armazenamento das fotos do paciente.
+- ✅ **Ajuste dos perfis (12/set):** somente `feminino-perfil.png` e `masculino-perfil.png`
+  em `assets/checkin-references/` foram substituídos por versões sem olhos, boca, nariz,
+  sobrancelhas ou outros traços faciais. A pose lateral, o corpo inteiro, o fundo transparente
+  e o uso como referência pré-câmera permanecem iguais; ambos foram reconferidos em
+  1024×1536 com `alpha` presente.
+- ✅ **Publicação (12/set):** após `npx expo export --platform web`, o bundle foi publicado
+  no Vercel com `npx vercel deploy dist --project vytra-app --prod --yes` (deployment
+  `dpl_8NnxQXaeHDR9WXCJkQZphS8Lnzux`) e a atualização OTA foi criada com `npx eas deploy --prod`.
+  A rota `/aluno/checkin` respondeu HTTP 200 em `app.vytraoficial.com.br` e
+  `vytra-app.vercel.app`. Inclui as referências pré-câmera e os dois perfis sem traços faciais.
+- 🗺️ **Roadmap — diversidade visual (12/set):** registrada em [`ROADMAP.md`](ROADMAP.md), na
+  frente “Depois — Expansão validada”: futura biblioteca de modelos com variações de pele/etnia,
+  traços e cabelo para exercícios, check-in e onboarding. Diretriz de privacidade: a variedade
+  entra por curadoria/rotação de contexto visual; o app não deve inferir, solicitar ou persistir
+  raça/etnia do paciente para selecionar uma imagem. Não iniciado, sem alteração no produto
+  publicado nesta rodada.
 - **Migrações aplicadas em produção** (autorizado pelo Guilherme):
   [`20260912_checkins_edicao.sql`](supabase/migrations/20260912_checkins_edicao.sql) (§37,
   correção do check-in dentro de 24h) e
@@ -3129,3 +3173,229 @@ Reescrita de [`checkin-flow.tsx`](src/components/checkin-flow.tsx).
   as silhuetas-guia sobre a câmera ao vivo, a sessão do check-in preservada ao voltar da câmera,
   e a galeria via `expo-image-picker`. Item 5 do benchmark (§30) e a ampliação de check-in ficam
   fechados de ponta a ponta, em produção.
+
+## 40. IA gera treino e dieta a partir da anamnese — item 3 do benchmark reaberto (14/set)
+
+✅ **Migração aplicada, bucket criado, Edge Functions deployadas (14/set, autorizado pelo
+Guilherme)** — falta só configurar os dois secrets (`ANTHROPIC_API_KEY`, `OPENAI_API_KEY`) pra
+funcionar de ponta a ponta; sem eles as duas functions respondem `falha_api`/`falha` (bloqueio
+gracioso, nada quebra). `get_advisors(security)` depois da migração: nenhuma categoria nova além
+do já aceito — `exercicios_ilustracoes`/`ia_geracoes` sem achado. `npx tsc --noEmit` limpo após
+regenerar `database.types.ts` via `generate_typescript_types`.
+
+Pedido do Guilherme: reabrir o item 3 do benchmark (§30), "IA em prescrição/anamnese/dieta"
+(3/5 concorrentes), descartado em 11/set por "custo de infra" — nunca medido de verdade. Escopo
+fechado nesta sessão:
+- IA gera **treino e dieta** a partir da anamnese. Profissional **sempre** revisa e publica
+  manualmente — a IA nunca publica sozinha (reusa o mesmo rascunho/`publicado` que já existia).
+- **Sem paywall/gating de plano nesta v1** — sistema de tier de plataforma não existe ainda (só
+  `professional_plans`, produto vendível do profissional, não tier). Decisão de negócio do
+  Guilherme: lançar com tudo incluso agora pra vender diferenciação, gating fica pendência
+  separada ligada ao item 1 (financeiro/cobrança) — mesmo padrão de "quem já tem, mantém" que
+  Notion/Linear usaram ao introduzir tier depois.
+- Custo mitigado por: modelo barato (`claude-haiku-4-5-20251001`), **sem retry automático** em
+  lugar nenhum, e tabela `ia_geracoes` medindo tokens reais por chamada.
+- Achado que virou regra de implementação: [`gastoEnergetico.ts:1-9`](src/models/gastoEnergetico.ts)
+  já documentava decisão anterior do Guilherme — "toda sugestão baseada no que o profissional
+  seta, nas fórmulas presentes". A IA nunca decide a meta calórica: só decide alimento/porção pra
+  bater `meta_kcal`/macros que o profissional já tem em `planos_alimentares` (calculadora
+  existente ou digitado à mão). Se não existir `meta_kcal`, a geração de dieta é bloqueada com
+  aviso — zero custo de API gasto num bloqueio.
+
+**Segunda automação, pedido à parte do Guilherme**: exercício sem ilustração (nem os ~34 do
+catálogo estático, nem já gerado antes) ganha ilustração nova via **OpenAI `gpt-image-1`**
+(`images.edit`, 2 ilustrações existentes como referência de estilo) — dispara em **qualquer**
+save de plano, manual ou de IA, não só quando a IA monta. Cache global por nome normalizado
+(`exercicios_ilustracoes`): o mesmo exercício gerado uma vez serve pra qualquer aluno/profissional
+que usar esse nome depois — custo total limitado ao número de exercícios *distintos* já vistos,
+não ao número de planos.
+
+- **Migração** [`20260914_ia_geracao_planos.sql`](supabase/migrations/20260914_ia_geracao_planos.sql)
+  (ainda não aplicada): `plans.gerado_por_ia`/`planos_alimentares.gerado_por_ia` (bool) +
+  constraint `check (not (gerado_por_ia and publicado))` nas duas — rede de segurança no banco
+  contra rascunho de IA vazar pro aluno, mesmo com bug futuro (a app já limpa a flag em todo save,
+  isso nunca deveria disparar em uso normal). Tabela `ia_geracoes` (auditoria de custo/status por
+  chamada, RLS: profissional só lê a própria). Tabela `exercicios_ilustracoes` (cache global de
+  ilustração, RLS: leitura pra qualquer autenticado, escrita só via service role).
+- **Refactor**: `gerarIdDeExercicio`/`idsEmUso`/`prepararParaSalvar`/`planoParaEdicao` (e tipos
+  `PlanoEditavel`/`DiaEditavel`/`ExercicioEditavel`) saíram de `services/planEditor.ts` pra
+  `models/domain.ts` — são puros (sem `@/lib/supabase`), precisavam rodar também em Deno.
+  `planEditor.ts` reexporta tudo, nenhum call site mudou. `normalizarNomeExercicio`, novo em
+  [`lib/exerciseNormalize.ts`](src/lib/exerciseNormalize.ts), saiu de dentro de
+  `exerciseIllustrations.ts` pelo mesmo motivo.
+- **Duas Edge Functions novas** (primeiras do projeto — não existia `supabase/functions/` ainda):
+  [`generate-ai-plan`](supabase/functions/generate-ai-plan/index.ts) (Anthropic, tool-forçada,
+  uma chamada por tipo treino/dieta) e
+  [`generate-exercise-illustration`](supabase/functions/generate-exercise-illustration/index.ts)
+  (OpenAI, roda em background via `EdgeRuntime.waitUntil` pra não travar quem chamou — gerar
+  imagem leva 10-30s). Ambas importam direto por caminho relativo os arquivos puros de `src/`
+  acima — sem duplicar lógica entre app e Edge Function. ⚠️ **Detalhe do deploy via MCP**: a
+  ferramenta de deploy exige lista explícita de arquivo (sem acesso ao filesystem real), e o
+  virtual root dela não deixa `../` subir acima da própria function — então o deploy atual usa
+  `./src/...` como caminho, não o `../../../src/...` que está nos arquivos commitados no repo
+  (esse é o caminho correto pra deploy via Supabase CLI local, que lê o filesystem de verdade).
+  Os dois caminhos coexistem por design; se reintrospectar a function via `get_edge_function` o
+  import vai aparecer diferente do repo — isso é esperado, não é drift acidental.
+  `generate-exercise-illustration` também não inclui, nesse deploy MCP, as 2 imagens de
+  referência de estilo (`reference/*.b64.txt`, ~1.3MB de base64 juntas — grande demais pra
+  passar pelo parâmetro da ferramenta sem gastar contexto à toa) — elas EXISTEM commitadas no
+  repo pra quando alguém rodar `supabase functions deploy` via CLI local. Sem elas, a function
+  cai automaticamente no `images.generate` (só prompt de texto, sem referência visual) — funciona,
+  só não com a consistência de estilo que foi pedida. Registrado como pendência abaixo.
+- **Serviços novos**: [`iaService.ts`](src/services/iaService.ts) (client, chama
+  `generate-ai-plan`) e [`illustrationService.ts`](src/services/illustrationService.ts) (busca em
+  lote do cache de ilustração + dispara `generate-exercise-illustration` fire-and-forget).
+- **UI**: botão "Gerar com IA" nas telas de treino/dieta do profissional
+  ([`pro/aluno/[id]/index.tsx`](src/app/pro/aluno/%5Bid%5D/index.tsx),
+  [`pro/aluno/[id]/dieta.tsx`](src/app/pro/aluno/%5Bid%5D/dieta.tsx)) com confirmação antes de
+  sobrescrever plano com conteúdo real, e banner "Sugestão de IA — revise antes de publicar"
+  enquanto `gerado_por_ia=true`. Aluno ([`aluno/treino.tsx`](src/app/aluno/treino.tsx)) ganha
+  fallback de ilustração dinâmica quando a estática não cobre o exercício.
+- **LGPD (ação pendente, não só nota)**: anamnese carrega dado de saúde sensível. Mandar isso pra
+  Anthropic é transferência internacional nova, além da já documentada (banco nos EUA) — só sai
+  um subconjunto curado das chaves de `respostas_completas` (nunca nome/telefone/profissão). O
+  termo de consentimento (fora do repo, ver §14) precisa declarar a Anthropic como novo
+  sub-processador **antes** de qualquer aluno real passar por isso — sign-off do Guilherme, não é
+  decisão só de engenharia.
+
+**Pendências novas:**
+- **Configurar os secrets** `ANTHROPIC_API_KEY` e `OPENAI_API_KEY` no projeto Supabase
+  (`treino-tassis`, `fshwcaxcbnudvoyyqaxy`) — via dashboard (Edge Functions → Secrets) ou
+  `supabase secrets set ANTHROPIC_API_KEY=... OPENAI_API_KEY=... --project-ref
+  fshwcaxcbnudvoyyqaxy`. Chave de cada provedor é do Guilherme, não passa pelo chat/agente.
+  `SUPABASE_URL`/`SUPABASE_ANON_KEY`/`SUPABASE_SERVICE_ROLE_KEY` já são injetados automaticamente
+  pelo runtime, não precisam ser configurados.
+- Rodar um deploy via Supabase CLI local (`supabase functions deploy generate-exercise-illustration
+  --project-ref fshwcaxcbnudvoyyqaxy`) quando quiser as 2 imagens de referência de estilo
+  entrando de verdade (ver nota do deploy MCP acima) — opcional, a function funciona sem isso.
+- Gating de IA por tier de plano — sem sistema de tier ainda, ligado ao item 1 (financeiro).
+- Atualizar o termo de consentimento externo com o novo sub-processador (Anthropic) antes de uso
+  real com paciente.
+- Testar de ponta a ponta com o Guilherme logado, mesma regra de sempre (nunca senha de conta
+  nenhuma digitada por agente) — inclusive confirmar que a constraint do banco
+  (`plans_ia_exige_revisao`/`planos_alimentares_ia_exige_revisao`) segura mesmo se algo tentar
+  publicar direto.
+
+✅ **Deploy do app publicado nos dois hosts (14/set)**: `npx expo export --platform web` → `npx
+eas deploy --prod` → `npx vercel deploy dist --project vytra-app --prod --yes`. Bundle
+`entry-a88a0cd29e839caa2b0efbbbe76f378e.js`, conferido por `curl` nos dois
+(`app-treino.expo.app`, `app.vytraoficial.com.br`), ambos 200. Backend (migração, bucket, Edge
+Functions) já estava em produção desde antes deste deploy — só faltava o app cliente pegar o
+botão "Gerar com IA" novo. Secrets (`ANTHROPIC_API_KEY`/`OPENAI_API_KEY`) configurados pelo
+Guilherme direto no dashboard — teste real de ponta a ponta ainda pendente (ele vai clicar
+"Gerar com IA" numa tela real).
+
+## 41. Reenviar convite de cadastro pra lead (14/set)
+
+✅ Pedido do Guilherme: em `pro/leads.tsx`, o botão "Enviar convite" só existe enquanto
+`lead.convite_id` é nulo (linha do botão original) — depois de gerado uma vez (link perdido,
+WhatsApp não entregou, etc.), não tinha como gerar link novo pro mesmo lead.
+
+- **Investigação prévia**: bloqueio era 100% de UI (`lead.status === 'lead' && !lead.convite_id`
+  escondendo o botão), nada no schema/RLS impedia um segundo convite. Achado à parte, relevante
+  pra quem mexer em `convites` de novo: o arquivo de migração `20260904_leads_atendimentos.sql`
+  parece redefinir `finalizar_cadastro_convite` exigindo `status = 'preenchido'`, mas a versão
+  **realmente aplicada em produção** (conferida direto no banco via `pg_get_functiondef`, não só
+  lendo os arquivos) é a de `20260904_anamnese_pos_login.sql`, que exige `status = 'pendente'` —
+  fluxo atual de verdade é conta primeiro, anamnese depois, dentro do app autenticado. Não confiar
+  só na ordem alfabética dos arquivos de migração pra saber qual definição vale; checar o banco.
+- **Migração** [`20260914_reenviar_convite.sql`](supabase/migrations/20260914_reenviar_convite.sql),
+  aplicada em produção: função `reenviar_convite(p_convite_id uuid) returns text` — regenera o
+  `token` na MESMA linha de `convites` (nunca cria linha nova) e força `status = 'pendente'`. Sem
+  `SECURITY DEFINER` de propósito: a RLS de `convites` já restringe update a
+  `created_by = auth.uid()`, então a função roda como invoker e herda essa checagem sozinha — o
+  `and created_by = auth.uid()` explícito na função é defesa em profundidade, não substituto da
+  RLS. `get_advisors(security)` depois: função nem aparece nos achados de "SECURITY DEFINER
+  público" (esperado, por não ser DEFINER), nenhuma categoria nova.
+- **Serviço**: `reenviarConvite(conviteId)`, novo em
+  [`professionalService.ts`](src/services/professionalService.ts), ao lado de `criarConvite`.
+- **UI**: `pro/leads.tsx` ganhou botão "Reenviar convite" quando `lead.status === 'lead' &&
+  lead.convite_id`. Reusa a MESMA tela [`pro/convite.tsx`](src/app/pro/convite.tsx) — quando a
+  URL traz `conviteId`, os campos nome/e-mail ficam só leitura (não fazem parte do reenvio) e o
+  botão chama `reenviarConvite` em vez de `criarConvite`+`vincularConviteAoLead`; a tela de link
+  gerado avisa "o link anterior parou de funcionar".
+- `npx tsc --noEmit` limpo após regenerar `database.types.ts`.
+- **Deploy publicado nos dois hosts (14/set)**: `npx expo export --platform web` → `npx eas
+  deploy --prod` → `npx vercel deploy dist --project vytra-app --prod --yes`, conferido por
+  `curl` nos dois (`app-treino.expo.app`, `app.vytraoficial.com.br`), ambos 200.
+- **Não testado logado com lead real** — mesma regra de sempre (nunca senha de conta nenhuma
+  digitada por agente). Vale um teste manual: reenviar um convite existente e confirmar que o
+  link antigo para de funcionar e o novo completa o cadastro normalmente.
+
+## 42. Esqueci minha senha (14/set)
+
+✅ Pedido do Guilherme: não existia botão de recuperação de senha — dependia do SMTP, que ficou
+resolvido nesta sessão (ver §16, Etapa 2) assim que o domínio `vytraoficial.com.br` entrou no ar.
+
+- **Duas telas novas**: [`esqueci-senha.tsx`](src/app/esqueci-senha.tsx) (pede e-mail, chama
+  `solicitarRedefinicaoSenha` — mensagem de sucesso sempre igual, exista ou não o e-mail, pra não
+  vazar quem tem conta) e [`redefinir-senha.tsx`](src/app/redefinir-senha.tsx) (recebe o link).
+- **Achado que virou trabalho extra**: `flowType` do supabase-js nunca foi setado (fica no padrão
+  `implicit`), e `detectSessionInUrl: false` em `lib/supabase.ts` (proposital, evita crash de SSR
+  no export web) significa que o token do link de recuperação **nunca é lido sozinho** — chega em
+  `window.location.hash` (`#access_token=...&refresh_token=...&type=recovery`), e
+  `redefinir-senha.tsx` é quem lê isso manualmente e chama `setSession` — sem isso a tela nunca
+  reconheceria o link. Depois de trocar a senha, desloga de propósito (`signOut`) e manda pro
+  login de novo, em vez de deixar autenticado silenciosamente por um link de e-mail.
+- **Achado que quase quebrou o fluxo**: `_layout.tsx` tem um guard global que redireciona
+  qualquer sessão autenticada pra `/aluno`/`/pro` na hora. `redefinir-senha.tsx` GANHA uma sessão
+  (a de recuperação) assim que lê o token — sem exceção nesse guard, o usuário seria chutado pra
+  área errada antes de conseguir trocar a senha. `esqueci-senha`/`redefinir-senha` entraram na
+  mesma lista de exceção que `convite`/`cadastro-profissional` já tinham.
+- **Serviços novos** em [`authService.ts`](src/services/authService.ts):
+  `solicitarRedefinicaoSenha(email)` e `redefinirSenha(novaSenha)`. `baseUrl()`, que só existia
+  duplicada dentro de `pro/convite.tsx`, virou compartilhada em
+  [`lib/baseUrl.ts`](src/lib/baseUrl.ts) — usada nos dois lugares agora.
+- **UI**: login ganhou o link "Esqueci minha senha" (`login.tsx`).
+- **Verificado no browser** (preview local, `npx expo start --web`): disparo do link com e-mail
+  fictício (sem conta de verdade) devolveu a mesma mensagem de sucesso, sem erro no console;
+  `/redefinir-senha` sem token mostrou "link inválido" e o botão voltou pra `esqueci-senha`
+  corretamente. **Não testado o ciclo completo com e-mail de verdade chegando na caixa de
+  entrada** — vale um teste manual do Guilherme.
+- `npx tsc --noEmit` limpo (precisou reiniciar o Metro uma vez pra regenerar
+  `.expo/types/router.d.ts` com as rotas novas — `expo export` sozinho não atualiza esse arquivo,
+  só o dev server via `expo start` faz isso).
+- **Deploy publicado nos dois hosts (14/set)**: mesmo pipeline de sempre, conferido por `curl`,
+  ambos 200.
+
+⚠️→✅ **Bug real achado no teste com e-mail de verdade do Guilherme**: o link do e-mail levava
+pro **login**, não pra `redefinir-senha`. Causa: o Supabase só anexa o `redirect_to` pedido
+(`/redefinir-senha`) na URL final quando ela bate com uma Redirect URL cadastrada — sem bater,
+cai de volta no Site URL puro (`/`, raiz), token junto como fragmento
+(`#access_token=...&type=recovery`), só que grudado em "/" em vez de "/redefinir-senha".
+`index.tsx` (raiz) fazia `<Redirect href="/login">` pra quem não tem sessão — navegação do Router
+não carrega fragmento de URL, o token se perdia nesse pulo. Corrigido em
+[`index.tsx`](src/app/index.tsx): checa `window.location.hash` por `type=recovery` ANTES de
+qualquer decisão de sessão, e se achar usa `window.location.replace` (navegação de browser de
+verdade, preserva o hash) pra `/redefinir-senha` — funciona independente de a Redirect URL do
+dashboard estar cadastrada certa ou não (defesa em profundidade, não só corrigir a causa raiz).
+`npx tsc --noEmit` limpo. Deploy publicado de novo nos dois hosts.
+
+- ✅ **Template de e-mail na identidade da marca**, pedido do Guilherme:
+  [`docs/marca/email-redefinir-senha.html`](docs/marca/email-redefinir-senha.html) — sem imagem
+  de propósito (wordmark "VYTRA" em texto estilizado, mint sobre fundo escuro), evita depender de
+  host externo pra logo e o bloqueio de imagem padrão de boa parte dos clientes de e-mail.
+  **Substituído por ele no Supabase dashboard (14/set)** em Authentication → Emails → Reset
+  Password → Message (HTML) — config de dashboard, fora do que um agente aplica sozinho (mesma
+  limitação do §16). Vale reusar esse mesmo arquivo como base se um dia precisar de template pra
+  outro tipo de e-mail do Supabase (Magic Link, Change Email etc.) — hoje só Reset Password é
+  usado de verdade (confirmação de cadastro continua desligada, ver §16).
+
+## 43. Landing (`vytraoficial.com.br`) fora do ar — achado e corrigido (14/set)
+
+⚠️→✅ Guilherme reportou o site 404. Investigação: **não era DNS** — `dig` confirmou a raiz
+resolvendo pro IP da Vercel (`76.76.21.21`, o mesmo que o §7 marca como "legado, não usar",
+mas que segue funcional) e `www`/`app` também corretos. O problema era o **deploy de
+produção do projeto `vytra`** (feito há ~2 dias): `vercel inspect` mostrava `status: Ready` e
+alias certo pra `vytraoficial.com.br`, mas tanto o domínio quanto o alias direto
+`vytra-pi.vercel.app` devolviam `404 NOT_FOUND` (`x-vercel-error: NOT_FOUND`) — deploy marcado
+como saudável só na metadata, servindo 404 de verdade. Mesma classe de bug silencioso já
+documentada pro app (§17, ícones sumindo por `.vercelignore`) — build "Ready" não é garantia
+de conteúdo correto.
+
+**Correção**: `npx vercel deploy --prod --yes` de dentro de `site/` (sem mudança de código —
+`index.html`/`vercel.json` já estavam certos e sem diff no git) gerou um deploy novo
+(`dpl_7B8LvowQZdm5YqFRdFm9w8G8eXFs`) que serve 200 em todos os aliases. Verificado por `curl -I`
+em `vytraoficial.com.br`, `www.vytraoficial.com.br` e `vytra-pi.vercel.app` — os três 200.
+Não investigada a causa raiz do deploy anterior ter build vazio (não crítico agora que
+resolveu; se repetir, comparar `vercel inspect --logs` do deploy quebrado com um bom).
