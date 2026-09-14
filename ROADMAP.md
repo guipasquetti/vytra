@@ -1,6 +1,6 @@
 # Vytra — Roadmap de produto
 
-> Atualizado em 09 de setembro de 2026. Este arquivo consolida a direção ativa do produto; `HANDOFF.md` continua sendo a fonte canônica de estado técnico e decisões operacionais.
+> Atualizado em 12 de setembro de 2026. Este arquivo consolida a direção ativa do produto; `HANDOFF.md` continua sendo a fonte canônica de estado técnico e decisões operacionais.
 
 ## Objetivo
 
@@ -117,6 +117,13 @@ construídos.
 
 ## Depois — Expansão validada
 
+- **Biblioteca visual inclusiva de modelos e referências** — criar variações consistentes de
+  pele/etnia, traços e cabelo para ilustrações de exercícios, guias de câmera e imagens de
+  onboarding. A seleção será definida pelo contexto visual da tela e por uma rotação curada da
+  biblioteca, para que a experiência não fique predominantemente branca; nunca inferir,
+  registrar ou exigir raça/etnia do paciente para escolher uma imagem. Dependências: sistema de
+  direção de arte, revisão de acessibilidade/representação e revalidação clínica das poses.
+  **Status: Não iniciado.**
 - Versionamento completo de planos e comparação de evolução por ciclo.
 - Indicadores agregados de negócio e aderência por profissional.
 - White-label visual, integrações de saúde, marketplace/diretório e apps nativos.

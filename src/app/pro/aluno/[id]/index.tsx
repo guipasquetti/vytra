@@ -1,6 +1,6 @@
 import { useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { Alert, StyleSheet, View } from 'react-native';
 
 import { AlunoTabs } from '@/components/aluno-tabs';
 import {
@@ -18,6 +18,7 @@ import {
 } from '@/components/ui';
 import type { DiaTreino } from '@/models/domain';
 import { getProfile } from '@/services/authService';
+import { gerarPlanoComIA } from '@/services/iaService';
 import {
   idsRemovidos,
   novoDia,
@@ -45,6 +46,7 @@ export default function EditorPlanoScreen() {
   const [plano, setPlano] = useState<PlanoEditavel | null>(null);
   const [salvando, setSalvando] = useState(false);
   const [publicando, setPublicando] = useState(false);
+  const [gerando, setGerando] = useState(false);
   const [mensagem, setMensagem] = useState<string | null>(null);
   const [erro, setErro] = useState<string | null>(null);
 
@@ -60,6 +62,7 @@ export default function EditorPlanoScreen() {
         dados.plano?.periodo ?? '',
         dados.plano?.treinador || profile?.nome || '',
         dados.plano?.publicado ?? false,
+        dados.plano?.gerado_por_ia ?? false,
       ),
     );
   }, [clientId, profile?.nome]);
@@ -119,7 +122,7 @@ export default function EditorPlanoScreen() {
     setMensagem(null);
     setPublicando(true);
     try {
-      const novoPlano = { ...plano, publicado: !plano.publicado };
+      const novoPlano = { ...plano, publicado: !plano.publicado, geradoPorIa: false };
       await salvarPlano(clientId, user.id, novoPlano);
       setMensagem(
         novoPlano.publicado
@@ -132,6 +135,42 @@ export default function EditorPlanoScreen() {
       setErro(e instanceof Error ? e.message : 'Não consegui atualizar a publicação.');
     } finally {
       setPublicando(false);
+    }
+  }
+
+  async function gerarComIA() {
+    if (!clientId || !plano) return;
+
+    const temConteudo = plano.dias.some((d) => d.ex.some((e) => e.nome.trim()));
+    if (temConteudo) {
+      Alert.alert(
+        'Gerar com IA',
+        'Isso substitui o plano atual por uma sugestão da IA — revise antes de publicar. Continuar?',
+        [
+          { text: 'Cancelar', style: 'cancel' },
+          { text: 'Gerar', style: 'destructive', onPress: executarGeracao },
+        ],
+      );
+      return;
+    }
+    await executarGeracao();
+  }
+
+  async function executarGeracao() {
+    if (!clientId) return;
+    setErro(null);
+    setMensagem(null);
+    setGerando(true);
+    try {
+      const resultado = await gerarPlanoComIA(clientId, 'treino');
+      if (resultado.ok) {
+        setMensagem('Treino gerado — revise e publique quando estiver de acordo.');
+        await carregar();
+      } else {
+        setErro(resultado.bloqueio.message);
+      }
+    } finally {
+      setGerando(false);
     }
   }
 
@@ -148,13 +187,16 @@ export default function EditorPlanoScreen() {
             active
             color={plano.publicado ? Palette.green : Palette.orange}
           />
-          <Button
-            label={plano.publicado ? 'Despublicar' : 'Publicar'}
-            variant="ghost"
-            color={plano.publicado ? Palette.orange : Palette.green}
-            onPress={alternarPublicacao}
-            loading={publicando}
-          />
+          <View style={styles.statusActions}>
+            <Button label="Gerar com IA" variant="ghost" onPress={gerarComIA} loading={gerando} />
+            <Button
+              label={plano.publicado ? 'Despublicar' : 'Publicar'}
+              variant="ghost"
+              color={plano.publicado ? Palette.orange : Palette.green}
+              onPress={alternarPublicacao}
+              loading={publicando}
+            />
+          </View>
         </View>
         <Caption>
           {plano.publicado
@@ -162,6 +204,15 @@ export default function EditorPlanoScreen() {
             : 'Invisível pro aluno até você publicar — ele vê "seu plano está sendo montado".'}
         </Caption>
       </Card>
+
+      {plano.geradoPorIa && (
+        <Card>
+          <Caption color={Palette.orange}>
+            Sugestão de IA — revise antes de publicar. Qualquer alteração ou publicação já marca
+            o plano como seu.
+          </Caption>
+        </Card>
+      )}
 
       <Card>
         <Field
@@ -340,6 +391,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+  },
+  statusActions: {
+    flexDirection: 'row',
+    gap: Spacing.sm,
   },
   diaHeader: {
     flexDirection: 'row',

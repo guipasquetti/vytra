@@ -83,6 +83,10 @@ export default function LoginScreen() {
 
           <Button label="Entrar" color={cor} onPress={entrar} loading={entrando} />
 
+          <Pressable style={styles.criarConta} onPress={() => router.push('/esqueci-senha')} hitSlop={8}>
+            <Caption color={Palette.textSecondary}>Esqueci minha senha</Caption>
+          </Pressable>
+
           <Pressable style={styles.criarConta} onPress={() => router.push('/cadastro-profissional')} hitSlop={8}>
             <Caption color={cor}>Não tem cadastro? Criar conta</Caption>
           </Pressable>

@@ -30,6 +30,8 @@ export type PlanoAlimentarEditavel = {
   /** Resultado no momento do cálculo, preservado mesmo se o profissional ajustar as metas depois. */
   tmbCalculada: number | null;
   getCalculado: number | null;
+  /** Nasceu de geração automática por IA e ainda não passou por nenhum save do profissional. */
+  geradoPorIa: boolean;
 };
 
 export function novoItem(): ItemRefeicao {
@@ -93,6 +95,7 @@ export function planoAlimentarParaEdicao(
     percentual_gordura?: number | null;
     tmb_calculada?: number | null;
     get_calculado?: number | null;
+    gerado_por_ia?: boolean;
   } | null,
   nomeProfissional: string,
 ): PlanoAlimentarEditavel {
@@ -113,6 +116,7 @@ export function planoAlimentarParaEdicao(
       percentualGordura: '',
       tmbCalculada: null,
       getCalculado: null,
+      geradoPorIa: false,
     };
   }
   return {
@@ -130,6 +134,7 @@ export function planoAlimentarParaEdicao(
     percentualGordura: plano.percentual_gordura?.toString() ?? '',
     tmbCalculada: plano.tmb_calculada ?? null,
     getCalculado: plano.get_calculado ?? null,
+    geradoPorIa: plano.gerado_por_ia ?? false,
   };
 }
 
@@ -163,6 +168,9 @@ export async function salvarPlanoAlimentar(
       percentual_gordura: numeroOuNulo(plano.percentualGordura),
       tmb_calculada: plano.tmbCalculada,
       get_calculado: plano.getCalculado,
+      // Todo save do profissional (inclusive o que só alterna publicado) marca a dieta como
+      // dele, nunca mais como sugestão de IA pendente de revisão — mesma regra de `planEditor.ts`.
+      gerado_por_ia: false,
       updated_at: new Date().toISOString(),
     },
     { onConflict: 'client_id' },

@@ -6,6 +6,7 @@ import { CameraGuiada, type AnguloFoto } from '@/components/camera-guiada';
 import { Body, Button, Caption, Card, Field, Pill, Screen, SectionTitle, Stat, StepperButton } from '@/components/ui';
 import { perguntasVisiveis, type PerguntaCheckin, type RespostasCheckin, type ResumoCheckin } from '@/models/checkin';
 import { corrigirCheckin, submeterCheckin, uploadFotoCheckin, type CheckIn } from '@/services/checkinService';
+import { useAuthStore } from '@/store/authStore';
 import { Palette, Spacing } from '@/theme';
 
 type Fotos = { frente?: string; esquerdo?: string; direito?: string; costas?: string };
@@ -45,6 +46,7 @@ export function CheckinFlow({
   checkinParaCorrigir?: CheckIn;
   onConcluido: (resumo: ResumoCheckin) => void;
 }) {
+  const sexo = useAuthStore((store) => store.profile?.sexo);
   const [respostas, setRespostas] = useState<RespostasCheckin>(
     () => (checkinParaCorrigir?.respostas as RespostasCheckin | null) ?? {},
   );
@@ -239,6 +241,7 @@ export function CheckinFlow({
         <View style={styles.cameraOverlay}>
           <CameraGuiada
             tipo={cameraAberta}
+            sexo={sexo}
             onCancelar={() => setCameraAberta(null)}
             onFoto={async (arquivo) => {
               const tipo = cameraAberta;

@@ -59,6 +59,12 @@ export default function RootLayout() {
     // cadastrar_profissional rodar).
     if (raiz === 'cadastro-profissional') return;
 
+    // Recuperação de senha (14/set): "esqueci-senha" nunca tem sessão (pede o e-mail antes de
+    // logar); "redefinir-senha" GANHA uma sessão de recuperação assim que lê o token da URL —
+    // se essa regra pegasse isso, mandaria o usuário direto pra `/aluno`/`/pro` antes dele
+    // trocar a senha. As duas telas navegam sozinhas quando terminam.
+    if (raiz === 'esqueci-senha' || raiz === 'redefinir-senha') return;
+
     if (!session) {
       if (raiz !== 'login') router.replace('/login');
       return;

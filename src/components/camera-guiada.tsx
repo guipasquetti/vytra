@@ -3,7 +3,7 @@ import { useRef, useState } from 'react';
 import { Image, Pressable, StyleSheet, View } from 'react-native';
 
 import { Body, Button, Caption } from '@/components/ui';
-import { SilhuetaGuia } from '@/components/silhuetas-checkin';
+import { ModeloReferenciaFoto, SilhuetaGuia } from '@/components/silhuetas-checkin';
 import { Palette, Spacing } from '@/theme';
 
 export type AnguloFoto = 'frente' | 'esquerdo' | 'direito' | 'costas';
@@ -25,10 +25,12 @@ const ROTULO: Record<AnguloFoto, { titulo: string; instrucao: string }> = {
  */
 export function CameraGuiada({
   tipo,
+  sexo,
   onFoto,
   onCancelar,
 }: {
   tipo: AnguloFoto;
+  sexo?: string | null;
   onFoto: (arquivo: { uri: string; name: string }) => void;
   onCancelar: () => void;
 }) {
@@ -36,6 +38,7 @@ export function CameraGuiada({
   const [facing, setFacing] = useState<CameraType>('back');
   const [capturando, setCapturando] = useState(false);
   const [preview, setPreview] = useState<{ uri: string; format: string } | null>(null);
+  const [verReferencia, setVerReferencia] = useState(true);
   const cameraRef = useRef<CameraView>(null);
   const rotulo = ROTULO[tipo];
 
@@ -53,6 +56,30 @@ export function CameraGuiada({
   function usarFoto() {
     if (!preview) return;
     onFoto({ uri: preview.uri, name: `${tipo}.${preview.format}` });
+  }
+
+  // A referência aparece antes mesmo do pedido de permissão: a pessoa entende a pose
+  // que será solicitada antes de expor a câmera do aparelho.
+  if (verReferencia) {
+    return (
+      <View style={styles.referencia}>
+        <View style={styles.referenciaCabecalho}>
+          <Body style={styles.referenciaTitulo}>Como tirar esta foto</Body>
+          <Caption color={Palette.textTertiary}>{rotulo.titulo}</Caption>
+        </View>
+        <ModeloReferenciaFoto tipo={tipo} sexo={sexo} />
+        <View style={styles.referenciaTexto}>
+          <Body style={styles.referenciaInstrucao}>{rotulo.instrucao}</Body>
+          <Caption color={Palette.textTertiary} style={styles.referenciaLegenda}>
+            Deixe o corpo inteiro visível. Traje de banho ou roupa de treino ajustada ajuda a acompanhar sua evolução.
+          </Caption>
+        </View>
+        <View style={styles.referenciaAcoes}>
+          <Button label="Abrir câmera" onPress={() => setVerReferencia(false)} />
+          <Button label="Cancelar" variant="ghost" onPress={onCancelar} />
+        </View>
+      </View>
+    );
   }
 
   if (!permissao) return null;
@@ -90,7 +117,7 @@ export function CameraGuiada({
           <Caption color={Palette.textTertiary}>{rotulo.instrucao}</Caption>
         </View>
         <View style={styles.silhueta}>
-          <SilhuetaGuia tipo={tipo} />
+          <SilhuetaGuia tipo={tipo} sexo={sexo} />
         </View>
       </View>
 
@@ -112,6 +139,21 @@ export function CameraGuiada({
 const styles = StyleSheet.create({
   raiz: { flex: 1, backgroundColor: Palette.background },
   centro: { flex: 1, justifyContent: 'center', alignItems: 'center', gap: Spacing.md, padding: Spacing.lg, backgroundColor: Palette.background },
+  referencia: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: Spacing.lg,
+    paddingTop: Spacing.xl * 2,
+    paddingBottom: Spacing.lg,
+    backgroundColor: Palette.background,
+  },
+  referenciaCabecalho: { alignItems: 'center', gap: Spacing.xs },
+  referenciaTitulo: { color: Palette.text, fontWeight: '700' },
+  referenciaTexto: { alignItems: 'center', gap: Spacing.xs, maxWidth: 320 },
+  referenciaInstrucao: { textAlign: 'center', fontWeight: '600' },
+  referenciaLegenda: { textAlign: 'center' },
+  referenciaAcoes: { width: '100%', gap: Spacing.xs },
   overlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center' },
   topo: { marginTop: Spacing.xl * 2, alignItems: 'center', gap: Spacing.xs },
   titulo: { color: Palette.text, fontWeight: '700' },

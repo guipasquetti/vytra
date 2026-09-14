@@ -165,6 +165,13 @@ function LeadCard({ lead, onMudou }: { lead: Lead; onMudou: () => Promise<void> 
             }
           />
         ) : null}
+        {lead.status === 'lead' && lead.convite_id ? (
+          <Button
+            label="Reenviar convite"
+            variant="ghost"
+            onPress={() => router.push(`/pro/convite?leadId=${lead.id}&conviteId=${lead.convite_id}`)}
+          />
+        ) : null}
         <Button label="Mais opções" variant="ghost" onPress={() => setOpcoes((v) => !v)} />
       </View>
 

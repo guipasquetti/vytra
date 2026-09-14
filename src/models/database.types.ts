@@ -459,6 +459,87 @@ export type Database = {
           },
         ]
       }
+      exercicios_ilustracoes: {
+        Row: {
+          atualizado_em: string
+          criado_em: string
+          modelo: string | null
+          nome_normalizado: string
+          status: string
+          storage_path: string | null
+        }
+        Insert: {
+          atualizado_em?: string
+          criado_em?: string
+          modelo?: string | null
+          nome_normalizado: string
+          status: string
+          storage_path?: string | null
+        }
+        Update: {
+          atualizado_em?: string
+          criado_em?: string
+          modelo?: string | null
+          nome_normalizado?: string
+          status?: string
+          storage_path?: string | null
+        }
+        Relationships: []
+      }
+      ia_geracoes: {
+        Row: {
+          client_id: string
+          created_at: string
+          erro: string | null
+          id: string
+          input_tokens: number | null
+          modelo: string
+          output_tokens: number | null
+          professional_id: string
+          status: string
+          tipo: string
+        }
+        Insert: {
+          client_id: string
+          created_at?: string
+          erro?: string | null
+          id?: string
+          input_tokens?: number | null
+          modelo: string
+          output_tokens?: number | null
+          professional_id: string
+          status: string
+          tipo: string
+        }
+        Update: {
+          client_id?: string
+          created_at?: string
+          erro?: string | null
+          id?: string
+          input_tokens?: number | null
+          modelo?: string
+          output_tokens?: number | null
+          professional_id?: string
+          status?: string
+          tipo?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ia_geracoes_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ia_geracoes_professional_id_fkey"
+            columns: ["professional_id"]
+            isOneToOne: false
+            referencedRelation: "professionals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       leads: {
         Row: {
           client_id: string | null
@@ -531,6 +612,7 @@ export type Database = {
           client_id: string
           fator_atividade: number | null
           formula_calculo: string | null
+          gerado_por_ia: boolean
           get_calculado: number | null
           id: string
           meta_carboidrato_g: number | null
@@ -551,6 +633,7 @@ export type Database = {
           client_id: string
           fator_atividade?: number | null
           formula_calculo?: string | null
+          gerado_por_ia?: boolean
           get_calculado?: number | null
           id?: string
           meta_carboidrato_g?: number | null
@@ -571,6 +654,7 @@ export type Database = {
           client_id?: string
           fator_atividade?: number | null
           formula_calculo?: string | null
+          gerado_por_ia?: boolean
           get_calculado?: number | null
           id?: string
           meta_carboidrato_g?: number | null
@@ -608,6 +692,7 @@ export type Database = {
         Row: {
           client_id: string
           dias: Json
+          gerado_por_ia: boolean
           id: string
           periodo: string
           professional_id: string
@@ -618,6 +703,7 @@ export type Database = {
         Insert: {
           client_id: string
           dias?: Json
+          gerado_por_ia?: boolean
           id?: string
           periodo?: string
           professional_id: string
@@ -628,6 +714,7 @@ export type Database = {
         Update: {
           client_id?: string
           dias?: Json
+          gerado_por_ia?: boolean
           id?: string
           periodo?: string
           professional_id?: string
@@ -1063,6 +1150,7 @@ export type Database = {
       pode_ler_anexo_paciente: { Args: { p_caminho: string }; Returns: boolean }
       pode_ler_foto_checkin: { Args: { p_caminho: string }; Returns: boolean }
       recusar_convite: { Args: { p_token: string }; Returns: boolean }
+      reenviar_convite: { Args: { p_convite_id: string }; Returns: string }
       submeter_anamnese: {
         Args: { p_respostas: Json; p_token: string }
         Returns: boolean
@@ -1197,3 +1285,9 @@ export type CompositeTypes<
   : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema["CompositeTypes"]
     ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
     : never
+
+export const Constants = {
+  public: {
+    Enums: {},
+  },
+} as const

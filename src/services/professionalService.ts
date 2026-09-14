@@ -177,6 +177,18 @@ export async function criarConvite(params: {
   return data;
 }
 
+/**
+ * Reenvia o convite de um lead que já tinha recebido um — regenera o token na MESMA linha de
+ * `convites` (via RPC `reenviar_convite`, ver migração `20260914_reenviar_convite`), o link
+ * antigo para de funcionar. Não cria convite novo nem mexe em `leads.convite_id`.
+ */
+export async function reenviarConvite(conviteId: string): Promise<string> {
+  const { data, error } = await supabase.rpc('reenviar_convite', { p_convite_id: conviteId });
+  if (error) throw error;
+  if (!data) throw new Error('Não consegui reenviar o convite.');
+  return data;
+}
+
 export async function atualizarPlano(
   planoId: string,
   updates: TablesUpdate<'professional_plans'>

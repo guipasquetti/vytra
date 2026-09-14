@@ -1,4 +1,5 @@
 import type { Database } from "@/models/database.types";
+import { baseUrl } from "@/lib/baseUrl";
 import { supabase } from "@/lib/supabase";
 
 export type Profile = Database["public"]["Tables"]["profiles"]["Row"];
@@ -21,6 +22,25 @@ export async function signUp(email: string, password: string, nome: string) {
 
 export async function signOut() {
   const { error } = await supabase.auth.signOut();
+  if (error) throw error;
+}
+
+/**
+ * Dispara o e-mail de recuperação de senha (SMTP próprio, Resend — ver HANDOFF §16, resolvido
+ * 14/set). O `redirectTo` leva pra `redefinir-senha.tsx`, que lê o token da URL e troca a senha.
+ * Mesma resposta (sucesso) exista ou não o e-mail — a API do Supabase não diferencia, o que já
+ * evita enumeração de conta por aqui; a tela nunca deve mostrar "e-mail não encontrado".
+ */
+export async function solicitarRedefinicaoSenha(email: string): Promise<void> {
+  const { error } = await supabase.auth.resetPasswordForEmail(email, {
+    redirectTo: `${baseUrl()}/redefinir-senha`,
+  });
+  if (error) throw error;
+}
+
+/** Troca a senha na sessão de recuperação já estabelecida por `redefinir-senha.tsx`. */
+export async function redefinirSenha(novaSenha: string): Promise<void> {
+  const { error } = await supabase.auth.updateUser({ password: novaSenha });
   if (error) throw error;
 }
 

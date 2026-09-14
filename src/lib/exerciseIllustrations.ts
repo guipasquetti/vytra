@@ -1,5 +1,7 @@
 import type { ImageSourcePropType } from 'react-native';
 
+import { normalizarNomeExercicio } from './exerciseNormalize';
+
 type ExerciseIllustration = {
   aliases: readonly string[];
   source: ImageSourcePropType;
@@ -107,17 +109,8 @@ const illustrations: readonly ExerciseIllustration[] = [
 
 const tricepsCordaDiaD = require('../../assets/exercises/triceps-corda-dia-d.png');
 
-function normalizar(nome: string): string {
-  return nome
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .toLocaleLowerCase('pt-BR')
-    .replace(/[^a-z0-9]+/g, ' ')
-    .trim();
-}
-
 export function getExerciseIllustration(nome: string, diaId?: string): ImageSourcePropType | undefined {
-  const normalizado = normalizar(nome);
+  const normalizado = normalizarNomeExercicio(nome);
 
   if (normalizado.includes('triceps corda') && diaId?.trim().toUpperCase() === 'D') {
     return tricepsCordaDiaD;

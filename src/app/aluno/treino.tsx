@@ -35,6 +35,7 @@ import {
   type WorkoutData,
 } from '@/services/workoutService';
 import { temPlanoConfirmado } from '@/services/professionalService';
+import { buscarIlustracoesDinamicas, type IlustracaoDinamica } from '@/services/illustrationService';
 import { useAuthStore } from '@/store/authStore';
 import { Palette, Radius, Spacing, trainingColor } from '@/theme';
 import { getExerciseIllustration } from '@/lib/exerciseIllustrations';
@@ -46,6 +47,7 @@ export default function TreinoScreen() {
   const [liberado, setLiberado] = useState(true);
   const [loading, setLoading] = useState(true);
   const [diaAtivo, setDiaAtivo] = useState<string | null>(null);
+  const [ilustracoesDinamicas, setIlustracoesDinamicas] = useState<Record<string, IlustracaoDinamica>>({});
 
   // Sobrescreve o dia selecionado quando se chega aqui com `?dia=` (ex.: "Ir treinar" do
   // Início) — sem isso, a aba fica com o último dia escolhido manualmente (não desmonta ao
@@ -69,6 +71,13 @@ export default function TreinoScreen() {
         null,
     );
     setLoading(false);
+
+    const nomes = (resultado.plano?.dias ?? []).flatMap((d) => d.ex.map((e) => e.nome));
+    if (nomes.length) {
+      buscarIlustracoesDinamicas(nomes)
+        .then(setIlustracoesDinamicas)
+        .catch(() => {});
+    }
   }, [user]);
 
   useEffect(() => {
@@ -133,6 +142,7 @@ export default function TreinoScreen() {
           data={data!}
           onMudou={carregar}
           clientId={user!.id}
+          ilustracaoDinamica={ilustracoesDinamicas[ex.nome]}
         />
       ))}
     </Screen>
@@ -146,6 +156,7 @@ function ExercicioCard({
   data,
   clientId,
   onMudou,
+  ilustracaoDinamica,
 }: {
   ex: Exercicio;
   diaId: string;
@@ -153,6 +164,7 @@ function ExercicioCard({
   data: WorkoutData;
   clientId: string;
   onMudou: () => Promise<void>;
+  ilustracaoDinamica?: IlustracaoDinamica;
 }) {
   const historico = data.historico[ex.id];
   const rascunho = data.rascunhos[ex.id];
@@ -219,6 +231,17 @@ function ExercicioCard({
             accessibilityLabel={`Demonstração de execução: ${ex.nome}`}
           />
         </View>
+      ) : ilustracaoDinamica?.status === 'pronta' && ilustracaoDinamica.url ? (
+        <View style={styles.illustration}>
+          <Image
+            source={{ uri: ilustracaoDinamica.url }}
+            style={styles.illustrationImage}
+            resizeMode="contain"
+            accessibilityLabel={`Demonstração de execução: ${ex.nome}`}
+          />
+        </View>
+      ) : ilustracaoDinamica?.status === 'gerando' ? (
+        <Caption color={Palette.textTertiary}>Ilustração sendo gerada…</Caption>
       ) : null}
 
       {ex.nota ? <Caption color={Palette.orange}>{ex.nota}</Caption> : null}

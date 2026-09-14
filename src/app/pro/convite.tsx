@@ -3,16 +3,11 @@ import { useState } from 'react';
 import { StyleSheet, TextInput } from 'react-native';
 
 import { Body, Button, Caption, Card, EmptyState, Field, Screen, SectionTitle } from '@/components/ui';
-import { criarConvite } from '@/services/professionalService';
+import { baseUrl } from '@/lib/baseUrl';
+import { criarConvite, reenviarConvite } from '@/services/professionalService';
 import { vincularConviteAoLead } from '@/services/leadsService';
 import { useAuthStore } from '@/store/authStore';
 import { Palette, Radius, RoleColors, Spacing, FontSize } from '@/theme';
-
-/** Base pública do app — mesma origem no browser; fallback pra produção fora da web. */
-function baseUrl(): string {
-  if (typeof window !== 'undefined' && window.location?.origin) return window.location.origin;
-  return 'https://app-treino.expo.app';
-}
 
 /**
  * Convite só nasce de um lead (decisão do Guilherme, 04/set): antes da call de sensibilização
@@ -22,11 +17,16 @@ function baseUrl(): string {
  *
  * Sem plano aqui (04/set, segunda correção): o paciente escolhe o plano dentro do app, depois
  * de criar a conta — ver `OnboardingAnamnese`. Esta tela só identifica quem vai receber o link.
+ *
+ * Reenvio (14/set): quando vem `conviteId` na URL (botão "Reenviar convite" do lead que já
+ * tinha convite), esta mesma tela regenera o token na linha existente em vez de criar convite
+ * novo — nome/e-mail só exibidos, não editáveis, porque não fazem parte do reenvio.
  */
 export default function ConviteScreen() {
   const user = useAuthStore((s) => s.user);
   const router = useRouter();
-  const params = useLocalSearchParams<{ leadId?: string; nome?: string; email?: string }>();
+  const params = useLocalSearchParams<{ leadId?: string; conviteId?: string; nome?: string; email?: string }>();
+  const reenviando = !!params.conviteId;
   const [nome, setNome] = useState(params.nome ?? '');
   const [email, setEmail] = useState(params.email ?? '');
   const [criando, setCriando] = useState(false);
@@ -35,6 +35,21 @@ export default function ConviteScreen() {
 
   async function gerar() {
     if (!user || !params.leadId) return;
+
+    if (reenviando) {
+      setErro(null);
+      setCriando(true);
+      try {
+        const token = await reenviarConvite(params.conviteId!);
+        setLink(`${baseUrl()}/convite/${token}`);
+      } catch (e) {
+        setErro(e instanceof Error ? e.message : 'Não consegui reenviar o convite.');
+      } finally {
+        setCriando(false);
+      }
+      return;
+    }
+
     if (!nome.trim() || !email.trim()) {
       setErro('Preenche nome e e-mail.');
       return;
@@ -72,7 +87,7 @@ export default function ConviteScreen() {
 
   if (link) {
     return (
-      <Screen title="Convite gerado">
+      <Screen title={reenviando ? 'Convite reenviado' : 'Convite gerado'}>
         <Card>
           <SectionTitle>Link do convite</SectionTitle>
           <Body>{nome}</Body>
@@ -85,8 +100,9 @@ export default function ConviteScreen() {
             multiline
           />
           <Caption>
-            Toque no link e copie — mande pelo WhatsApp de sempre. O plano é escolhido pelo
-            próprio aluno dentro do app, depois de criar a conta.
+            {reenviando
+              ? 'O link anterior parou de funcionar — mande esse pelo WhatsApp de sempre.'
+              : 'Toque no link e copie — mande pelo WhatsApp de sempre. O plano é escolhido pelo próprio aluno dentro do app, depois de criar a conta.'}
           </Caption>
         </Card>
         <Button label="Voltar pros leads" onPress={() => router.push('/pro/leads')} />
@@ -95,20 +111,29 @@ export default function ConviteScreen() {
   }
 
   return (
-    <Screen title="Convidar aluno" subtitle="Gera o link de acesso pra este lead">
+    <Screen
+      title={reenviando ? 'Reenviar convite' : 'Convidar aluno'}
+      subtitle={reenviando ? 'Gera um link novo pra este lead — o antigo para de funcionar' : 'Gera o link de acesso pra este lead'}>
       <Card>
-        <Field label="Nome" value={nome} onChangeText={setNome} placeholder="Nome do paciente" />
+        <Field
+          label="Nome"
+          value={nome}
+          onChangeText={setNome}
+          placeholder="Nome do paciente"
+          editable={!reenviando}
+        />
         <Field
           label="E-mail"
           value={email}
           onChangeText={setEmail}
           placeholder="email@paciente.com"
           keyboardType="default"
+          editable={!reenviando}
         />
       </Card>
 
       {erro ? <Caption color={Palette.danger}>{erro}</Caption> : null}
-      <Button label="Gerar convite" onPress={gerar} loading={criando} />
+      <Button label={reenviando ? 'Reenviar convite' : 'Gerar convite'} onPress={gerar} loading={criando} />
     </Screen>
   );
 }

@@ -1,0 +1,70 @@
+<!--
+  Template de e-mail "Reset Password" do Supabase Auth, na identidade visual da Vytra.
+  Cola isso em: Supabase dashboard → Authentication → Emails → Reset Password → Message (HTML).
+  Sem imagem de propósito (wordmark em texto estilizado) — evita depender de host externo pra
+  logo e evita o bloqueio de imagem que boa parte dos clientes de e-mail aplica por padrão.
+  HTML de e-mail é sempre table-based com estilo inline — clientes de e-mail não confiam em
+  <style> nem em CSS moderno (flex/grid), por isso a estrutura abaixo foge do resto do app.
+  Cores batem com src/theme/index.ts (Brand.ink/mint/paper/paperMuted) — se a paleta mudar lá,
+  atualizar aqui também, não tem import possível entre os dois.
+-->
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Redefinir senha — Vytra</title>
+  </head>
+  <body style="margin:0; padding:0; background-color:#0A0C0D; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#0A0C0D;">
+      <tr>
+        <td align="center" style="padding:48px 16px;">
+          <table role="presentation" width="480" cellpadding="0" cellspacing="0" style="max-width:480px; width:100%; background-color:#15181A; border:1px solid #262B2D; border-radius:12px;">
+            <tr>
+              <td style="padding:40px 40px 32px;">
+                <div style="font-size:22px; font-weight:800; letter-spacing:0.08em; color:#2ED9A3; margin-bottom:32px;">
+                  VYTRA
+                </div>
+
+                <div style="font-size:20px; font-weight:700; color:#ECEFEE; margin-bottom:12px;">
+                  Redefinir sua senha
+                </div>
+
+                <div style="font-size:14px; line-height:1.6; color:#9CA6A2; margin-bottom:28px;">
+                  Recebemos um pedido pra trocar a senha da sua conta. Clica no botão abaixo pra
+                  escolher uma senha nova — o link expira em 1 hora.
+                </div>
+
+                <table role="presentation" cellpadding="0" cellspacing="0" style="margin-bottom:28px;">
+                  <tr>
+                    <td align="center" style="background-color:#2ED9A3; border-radius:8px;">
+                      <a href="{{ .ConfirmationURL }}"
+                         style="display:inline-block; padding:14px 28px; font-size:15px; font-weight:700; color:#0A0C0D; text-decoration:none;">
+                        Redefinir senha
+                      </a>
+                    </td>
+                  </tr>
+                </table>
+
+                <div style="font-size:13px; line-height:1.6; color:#6C7876; margin-bottom:8px;">
+                  Se você não pediu essa troca, pode ignorar este e-mail com segurança — sua senha
+                  continua a mesma.
+                </div>
+
+                <div style="font-size:12px; line-height:1.6; color:#6C7876;">
+                  Se o botão não funcionar, copia e cola este link no navegador:<br />
+                  <a href="{{ .ConfirmationURL }}" style="color:#2ED9A3; word-break:break-all;">{{ .ConfirmationURL }}</a>
+                </div>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:20px 40px; border-top:1px solid #262B2D;">
+                <div style="font-size:12px; color:#6C7876;">Vytra — um plano realmente seu.</div>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>
