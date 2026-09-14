@@ -1138,6 +1138,14 @@ export type Database = {
           status: string
         }[]
       }
+      obter_selo_profissionais: {
+        Args: { p_professional_ids: string[] }
+        Returns: {
+          bio: string
+          professional_id: string
+          verificado: boolean
+        }[]
+      }
       obter_solicitacoes_pendentes: {
         Args: never
         Returns: {

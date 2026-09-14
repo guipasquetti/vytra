@@ -362,6 +362,20 @@ export function RemoveButton({ onPress, label = 'Remover' }: { onPress: () => vo
   );
 }
 
+/**
+ * Selo de profissional verificado — mesmo espírito do badge azul de contas verificadas, só
+ * que na cor da marca (`Palette.accent`, o verde-menta "Sinal Vital"). Aparece só quando
+ * `professional_verificacoes.status === 'aprovado'` (via RPC `obter_selo_profissionais` pro
+ * paciente, ou `obterMinhaVerificacao` pro próprio profissional — nunca inventado no client).
+ */
+export function SeloVerificado({ size = 16 }: { size?: number }) {
+  return (
+    <View style={[styles.selo, { width: size, height: size, borderRadius: size / 2 }]}>
+      <Ionicons name="checkmark" size={size * 0.7} color={Palette.background} />
+    </View>
+  );
+}
+
 export function EmptyState({ text }: { text: string }) {
   return (
     <Card>
@@ -575,5 +589,10 @@ const styles = StyleSheet.create({
     color: Palette.danger,
     fontSize: FontSize.small,
     fontWeight: '700',
+  },
+  selo: {
+    backgroundColor: Palette.accent,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });

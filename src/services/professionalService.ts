@@ -1,5 +1,6 @@
 import { supabase } from '@/lib/supabase';
 import type { Tables, TablesInsert, TablesUpdate } from '@/models/database.types';
+import { obterSelosProfissionais } from '@/services/verificacaoService';
 
 export type PlanoProfissional = Tables<'professional_plans'>;
 
@@ -68,6 +69,8 @@ export type ProfissionalVinculado = {
   especialidade: string;
   planoNome: string | null;
   status: string;
+  verificado: boolean;
+  bio: string | null;
 };
 
 /** Profissionais que atendem este aluno — pode ser mais de um (relação N:N). */
@@ -84,12 +87,13 @@ export async function listarMeusProfissionais(clientId: string): Promise<Profiss
   const professionalIds = subscriptions.map((s) => s.professional_id);
   const planIds = subscriptions.map((s) => s.plan_id).filter((id): id is string => !!id);
 
-  const [{ data: perfis }, { data: profissionais }, { data: planos }] = await Promise.all([
+  const [{ data: perfis }, { data: profissionais }, { data: planos }, selos] = await Promise.all([
     supabase.from('profiles').select('id, nome').in('id', professionalIds),
     supabase.from('professionals').select('id, especialidade').in('id', professionalIds),
     planIds.length
       ? supabase.from('professional_plans').select('id, nome').in('id', planIds)
       : Promise.resolve({ data: [] as Pick<PlanoProfissional, 'id' | 'nome'>[] }),
+    obterSelosProfissionais(professionalIds),
   ]);
 
   return subscriptions.map((sub) => ({
@@ -100,6 +104,8 @@ export async function listarMeusProfissionais(clientId: string): Promise<Profiss
       profissionais?.find((p) => p.id === sub.professional_id)?.especialidade ?? '',
     planoNome: planos?.find((p) => p.id === sub.plan_id)?.nome ?? null,
     status: sub.status,
+    verificado: selos.get(sub.professional_id)?.verificado ?? false,
+    bio: selos.get(sub.professional_id)?.bio ?? null,
   }));
 }
 

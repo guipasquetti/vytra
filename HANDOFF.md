@@ -1,8 +1,9 @@
 # Vytra — Handoff
 
 > Documento de contexto para replicar o estado do projeto em outro chat.
-> Última atualização: 14/Setembro/2026 — perfil do profissional parou de mostrar campo de
-> aluno (peso/altura/sexo/nascimento), deploy publicado nos dois hosts, ver §44.
+> Última atualização: 14/Setembro/2026 — solicitar alteração de cadastro profissional + selo
+> de verificado pro paciente (ver §45); achado drift de segurança nos 4 helpers RPC, pendência
+> separada anotada lá.
 
 > **Fonte canônica:** este arquivo, na raiz do repositório. Todo agente (Codex ou Claude) deve lê-lo antes de alterar o projeto e atualizá-lo ao concluir mudanças relevantes, decisões, migrações, configuração de infraestrutura ou bloqueios.
 
@@ -3150,8 +3151,20 @@ Reescrita de [`checkin-flow.tsx`](src/components/checkin-flow.tsx).
   frente “Depois — Expansão validada”: futura biblioteca de modelos com variações de pele/etnia,
   traços e cabelo para exercícios, check-in e onboarding. Diretriz de privacidade: a variedade
   entra por curadoria/rotação de contexto visual; o app não deve inferir, solicitar ou persistir
-  raça/etnia do paciente para selecionar uma imagem. Não iniciado, sem alteração no produto
-  publicado nesta rodada.
+  raça/etnia do paciente para selecionar uma imagem.
+- ✅ **Biblioteca inicial de diversidade visual completa (14/set):**
+  `assets/checkin-references/diversidade/` agora contém **16 PNGs** (1024×1536, `alpha`), com
+  frente, costas, perfil esquerdo e perfil direito para mulher negra, homem negro, mulher do
+  Leste Asiático e homem do Leste Asiático. Todos são faceless e preservam postura clínica,
+  traje preto e enquadramento. Ainda não são selecionados nem exibidos pelo app; faltam outras
+  representações e a regra de curadoria/rotação na interface.
+- ⚠️ **Regra obrigatória para novos exercícios (Guilherme, 14/set):** ao gerar novas
+  ilustrações de execução, **mesclar deliberadamente as etnias** ao longo da biblioteca e de
+  cada conjunto de telas/treinos — não concentrar todos os novos exercícios em modelos brancos.
+  A escolha deve ser uma rotação editorial equilibrada, sem inferir, pedir ou persistir
+  raça/etnia do paciente. Cada prompt novo deve declarar a representação escolhida, preservar
+  as regras biomecânicas e o padrão visual Vytra, e a revisão deve conferir a distribuição
+  acumulada antes de aprovar o lote.
 - **Migrações aplicadas em produção** (autorizado pelo Guilherme):
   [`20260912_checkins_edicao.sql`](supabase/migrations/20260912_checkins_edicao.sql) (§37,
   correção do check-in dentro de 24h) e
@@ -3430,3 +3443,59 @@ saúde do **aluno**, sem sentido pro profissional, que nunca preenche isso.
   `entry-0a18ab62e1850b6d0b608394bfb9024b.js`, conferido por `curl` (não só status — o `body`
   com o nome do bundle, lição do §43) nos dois: `app-treino.expo.app` e
   `app.vytraoficial.com.br`, mesmo hash nos dois, ambos 200.
+
+## 45. Solicitar alteração de cadastro + selo de verificado pro paciente (14/set)
+
+✅ Pedido do Guilherme, seguindo §44: precisa dar pro profissional pedir alteração no próprio
+registro depois de aprovado (ex.: tirou o CRN além do CREF que já tinha) sem falar com admin
+por fora, e mostrar pro paciente que o profissional é verificado — um selo tipo o azul do
+Meta, mas na cor da marca.
+
+- **Fluxo de alteração**: nova tela
+  [`pro/cadastro-editar.tsx`](src/app/pro/cadastro-editar.tsx) (href:null em `pro/_layout.tsx`,
+  não é aba — acessível pelo Perfil), reusa o mesmo padrão visual de
+  `cadastro-profissional.tsx`. Prefill com `obterMinhaVerificacao`; envia via
+  `solicitarAlteracaoCadastro` (novo em `verificacaoService.ts`) — `UPDATE` direto em
+  `professional_verificacoes` (sem RPC nova; a RLS `professional_verificacoes_update_self` já
+  existente, ver §8, aceita self-update). **Decisão deliberada**: o update sempre inclui
+  `status: 'pendente'` explícito — a RLS (`with_check ... and status = 'pendente'`) rejeitaria
+  o update se `status` ficasse implícito no valor antigo (`aprovado`), então reabrir
+  verificação não é acidente, é o comportamento pedido. Tela avisa isso antes de enviar: "o
+  selo de verificado some até um admin confirmar de novo". Reusa a mesma fila do admin
+  (`admin.tsx`, sem mudança lá) — nenhuma tabela/coluna nova.
+- **Selo de verificado**: componente `SeloVerificado`
+  ([`components/ui/index.tsx`](src/components/ui/index.tsx)) — círculo com check, cor
+  `Palette.accent` (verde-menta "Sinal Vital"), mesmo espírito do badge azul de conta
+  verificada. Aparece: (a) no próprio perfil do profissional, ao lado do nome, quando
+  `verificacao.status === 'aprovado'`; (b) no card de "Meus profissionais" do aluno, ao lado
+  do nome de cada profissional vinculado, junto com a bio dele.
+- **Achado de segurança que virou trabalho extra — lente §0 aplicada**: `professional_verificacoes`
+  tem RLS restrita a `professional_id = auth.uid() or is_admin()` de propósito (guarda CPF,
+  número de registro, caminho do documento). Paciente **não pode ler essa tabela direto**. Pra
+  mostrar o selo/bio pro paciente sem abrir a tabela inteira, nova migração
+  [`20260914_selo_profissional.sql`](supabase/migrations/20260914_selo_profissional.sql) — RPC
+  `obter_selo_profissionais(uuid[])`, `SECURITY DEFINER`, retorna só `verificado`/`bio` e só
+  pra quem é `is_client_of()` daquele profissional (ou o próprio profissional). CPF/número de
+  registro/documento continuam invisíveis pro paciente — decisão consciente, não peça faltando:
+  não é necessário pro selo, e é exatamente o tipo de exposição que o §0 pede pra evitar.
+  Aplicada em produção com autorização do Guilherme (migração aditiva, sem alterar tabela
+  existente).
+- ⚠️→✅ **Achado ao aplicar a RPC**: `revoke ... from public` sozinho não bastou —
+  `information_schema.routine_privileges` mostrou `anon` com `EXECUTE` mesmo depois do revoke
+  de `PUBLIC` (Supabase concede `EXECUTE` a `anon`/`authenticated` direto, por padrão, em toda
+  função nova do schema `public` — não é grant via `PUBLIC`, é grant nomeado). Corrigido com
+  `revoke execute ... from anon` explícito, migração incorporada. **Achado à parte, mais sério,
+  fora do escopo desta mudança**: ao conferir isso, os 4 helpers que o §0 registra como "anon
+  revogado" (`is_trainer`/`is_professional`/`is_professional_of`/`is_client_of`) estão hoje
+  com `EXECUTE` em `PUBLIC` de novo — regrediram em algum momento entre 04/set e agora
+  (provável: um `create or replace function` depois não reaplicou o revoke). Risco baixo (as 4
+  dependem de `auth.uid()`, retornam `false` sem sessão — mesma leitura já feita no §0), mas é
+  drift real do estado documentado. **Não corrigido aqui** — sinalizado como pendência
+  separada, não misturar com esta migração.
+- `npx tsc --noEmit` limpo. Verificado renderização da tela nova sem login (preview local,
+  `npx expo start --web`) — form aparece certo, nenhum erro de console ligado ao código.
+  **Não testado o fluxo completo logado** (pedir alteração → sumir selo → admin aprovar →
+  selo voltar) — mesma regra de sempre, vale conferência do Guilherme.
+- **Deploy publicado nos dois hosts (14/set)**: mesmo pipeline de sempre. Bundle
+  `entry-7889fe9e2301bdcc2f34d5015054c5d5.js`, conferido por `curl` (hash igual nos dois +
+  `/pro/cadastro-editar` 200) em `app-treino.expo.app` e `app.vytraoficial.com.br`.

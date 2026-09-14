@@ -2,7 +2,7 @@ import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Linking, StyleSheet, View } from 'react-native';
 
-import { Body, Button, Caption, Card, Field, Pill, Screen, SectionTitle } from '@/components/ui';
+import { Body, Button, Caption, Card, Field, Pill, Screen, SectionTitle, SeloVerificado } from '@/components/ui';
 import { formatarDataHora } from '@/models/domain';
 import { listarAlunos, listarMeusProfissionais } from '@/services/professionalService';
 import { atualizarPerfil, signOut } from '@/services/authService';
@@ -13,7 +13,7 @@ import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
 import { Palette, Spacing } from '@/theme';
 
-type Vinculo = { titulo: string; detalhe: string };
+type Vinculo = { titulo: string; detalhe: string; verificado?: boolean; bio?: string | null };
 
 const OPCOES_SEXO = [
   { valor: 'feminino', label: 'Feminino' },
@@ -76,6 +76,8 @@ export function PerfilScreen() {
           profissionais.map((p) => ({
             titulo: p.nome,
             detalhe: p.planoNome ?? 'Sem plano definido',
+            verificado: p.verificado,
+            bio: p.bio,
           })),
         ),
       );
@@ -189,7 +191,10 @@ export function PerfilScreen() {
         ) : (
           <>
             <View style={styles.cabecalho}>
-              <Body>{profile?.nome || 'Sem nome'}</Body>
+              <View style={styles.nomeComSelo}>
+                <Body>{profile?.nome || 'Sem nome'}</Body>
+                {isProfessional && verificacao?.status === 'aprovado' ? <SeloVerificado /> : null}
+              </View>
               <Button label="Editar" variant="ghost" onPress={iniciarEdicao} />
             </View>
             {dados.map((d) => (
@@ -201,6 +206,22 @@ export function PerfilScreen() {
           </>
         )}
       </Card>
+
+      {isProfessional ? (
+        <Card>
+          <SectionTitle>Cadastro profissional</SectionTitle>
+          <Caption>
+            Tirou um registro novo (ex.: CRN além do CREF) ou quer atualizar dados do conselho?
+            Uma alteração volta seu cadastro pra análise — o selo de verificado some até um
+            admin confirmar de novo.
+          </Caption>
+          <Button
+            label="Solicitar alteração de cadastro"
+            variant="ghost"
+            onPress={() => router.push('/pro/cadastro-editar')}
+          />
+        </Card>
+      ) : null}
 
       {!isProfessional ? (
         <Card>
@@ -241,8 +262,12 @@ export function PerfilScreen() {
       {vinculos.length ? (
         vinculos.map((v, i) => (
           <Card key={i}>
-            <Body>{v.titulo}</Body>
+            <View style={styles.nomeComSelo}>
+              <Body>{v.titulo}</Body>
+              {v.verificado ? <SeloVerificado size={14} /> : null}
+            </View>
             <Caption>{v.detalhe}</Caption>
+            {v.bio ? <Caption color={Palette.text}>{v.bio}</Caption> : null}
           </Card>
         ))
       ) : (
@@ -267,6 +292,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: Spacing.md,
+  },
+  nomeComSelo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
   },
   rowFields: {
     flexDirection: 'row',

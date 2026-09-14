@@ -66,6 +66,17 @@ export default function ProLayout() {
         {/* Detalhe do aluno e geração de convite: acessíveis por push, não são abas. */}
         <Tabs.Screen name="convite" options={{ href: null, headerShown: false }} />
         <Tabs.Screen
+          name="cadastro-editar"
+          options={{
+            href: null,
+            headerShown: true,
+            title: 'Alterar cadastro',
+            headerStyle: { backgroundColor: Palette.background },
+            headerTintColor: Palette.text,
+            headerShadowVisible: false,
+          }}
+        />
+        <Tabs.Screen
           name="aluno/[id]/index"
           options={{
             href: null,

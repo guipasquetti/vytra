@@ -7,6 +7,13 @@ export type VerificacaoProfissional = {
   motivoRejeicao: string | null;
   numeroRegistro: string;
   ufRegistro: string;
+  bio: string | null;
+};
+
+/** Selo público (badge + bio) que um paciente vê do seu profissional — nunca CPF/documento. */
+export type SeloProfissional = {
+  verificado: boolean;
+  bio: string | null;
 };
 
 export type SolicitacaoVerificacaoAdmin = {
@@ -71,7 +78,7 @@ export async function cadastrarProfissional(params: {
 export async function obterMinhaVerificacao(professionalId: string): Promise<VerificacaoProfissional | null> {
   const { data } = await supabase
     .from('professional_verificacoes')
-    .select('status, motivo_rejeicao, numero_registro, uf_registro')
+    .select('status, motivo_rejeicao, numero_registro, uf_registro, bio')
     .eq('professional_id', professionalId)
     .maybeSingle();
   if (!data) return null;
@@ -80,7 +87,51 @@ export async function obterMinhaVerificacao(professionalId: string): Promise<Ver
     motivoRejeicao: data.motivo_rejeicao,
     numeroRegistro: data.numero_registro,
     ufRegistro: data.uf_registro,
+    bio: data.bio,
   };
+}
+
+/**
+ * Profissional pede alteração no próprio registro (ex.: tirou o CRN depois de já ter
+ * cadastro aprovado só com CREF, ou quer atualizar UF/bio) — reenvia pra fila de aprovação do
+ * admin. A RLS `professional_verificacoes_update_self` (§8/§44 do handoff) só aceita o update
+ * se o resultado tiver `status = 'pendente'`, então isso é sempre explícito aqui: não dá pra
+ * editar sem reabrir verificação, de propósito — evita profissional aprovado mudar o registro
+ * sem passar por conferência humana de novo.
+ */
+export async function solicitarAlteracaoCadastro(
+  professionalId: string,
+  params: { numeroRegistro: string; ufRegistro: string; bio: string; documentoPath?: string },
+): Promise<void> {
+  const { error } = await supabase
+    .from('professional_verificacoes')
+    .update({
+      numero_registro: params.numeroRegistro,
+      uf_registro: params.ufRegistro,
+      bio: params.bio || null,
+      status: 'pendente',
+      motivo_rejeicao: null,
+      ...(params.documentoPath ? { documento_path: params.documentoPath } : {}),
+    })
+    .eq('professional_id', professionalId);
+  if (error) throw error;
+}
+
+/**
+ * Selo público em lote pro paciente — via RPC `obter_selo_profissionais` (SECURITY DEFINER),
+ * não lê `professional_verificacoes` direto (RLS bloqueia paciente ali, de propósito, ver
+ * migração `20260914_selo_profissional.sql`). Retorna só `verificado`/`bio`, nunca CPF/
+ * registro/documento.
+ */
+export async function obterSelosProfissionais(
+  professionalIds: string[],
+): Promise<Map<string, SeloProfissional>> {
+  if (!professionalIds.length) return new Map();
+  const { data, error } = await supabase.rpc('obter_selo_profissionais', {
+    p_professional_ids: professionalIds,
+  });
+  if (error || !data) return new Map();
+  return new Map(data.map((row) => [row.professional_id, { verificado: row.verificado, bio: row.bio }]));
 }
 
 /** Admin: fila de solicitações pendentes, com o mínimo pra decidir (nunca dado de saúde). */
