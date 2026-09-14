@@ -1,8 +1,9 @@
 # Vytra — Handoff
 
 > Documento de contexto para replicar o estado do projeto em outro chat.
-> Última atualização: 14/Setembro/2026 — gate de declaração de responsabilidade pra treino sem
-> CREF, mais esqueleto do termo de consentimento/isenção, ver §48.
+> Última atualização: 14/Setembro/2026 — §7 corrigido: os 3 gaps do WebDiet estavam registrados
+> como "em aberto" mesmo com prontuário evolutivo (§33) e anexos (§35) já construídos e em
+> produção desde 12/set; só financeiro segue bloqueado por CNPJ.
 
 > **Fonte canônica:** este arquivo, na raiz do repositório. Todo agente (Codex ou Claude) deve lê-lo antes de alterar o projeto e atualizá-lo ao concluir mudanças relevantes, decisões, migrações, configuração de infraestrutura ou bloqueios.
 
@@ -538,8 +539,18 @@ signup) eram sintoma; a causa é que essa via não serve para o caso de uso. Ver
   não é referência de tela, só de capacidade. Lente §0 obrigatória nos 3: financeiro é dado
   sensível novo (valor cobrado, categoria), prontuário e anexos são dado de saúde adicional —
   cada um entra com checklist de RLS/base legal próprio antes de virar schema, mesma regra já
-  aplicada em `check_ins`/`professional_verificacoes`. **Ainda não priorizado entre os três nem
-  iniciado** — só a decisão de escopo está fechada.
+  aplicada em `check_ins`/`professional_verificacoes`.
+
+  **Status real dos 3 (atualizado 14/set — os dois primeiros abaixo estavam registrados como
+  "em aberto"/"pendente" nesta mesma seção, já resolvidos há dois dias, texto histórico
+  corrigido em vez de duplicado):**
+  - Gap 1 (financeiro): ⛔ **bloqueado**, estrutura de banco pronta desde 11/set, esperando
+    CNPJ da Vytra pra criar a sub-conta Asaas real (ver bloqueio abaixo, ainda vale).
+  - Gap 2 (prontuário evolutivo): ✅ **construído, testado e em produção desde 12/set** — ver
+    §33. Decisão que ficava em aberto aqui (estender `atendimentos` vs. tabela nova) foi
+    resolvida: estendeu `atendimentos`.
+  - Gap 3 (anexos do paciente): ✅ **construído, testado e em produção desde 12/set** — ver
+    §35.
   - ✅ **Priorizado (11/set): financeiro/cobrança entra primeiro.** Guilherme escolheu cobrir
     cobrança antes de prontuário evolutivo e anexos. Desenho completo (2 fluxos — paciente→
     profissional e profissional→Vytra — com telas/funções/estados) num artifact:
@@ -689,10 +700,95 @@ signup) eram sintoma; a causa é que essa via não serve para o caso de uso. Ver
         recorte, ver comparação de 11/set). **Não entra na fila agora** — só registrado
         pra não perder o achado.
     - **Retomando por prontuário evolutivo primeiro** (mais parecido com o que já existe —
-      `atendimentos` — menos novidade que anexos). **Decisão em aberto, não resolvida
-      ainda**: estender `atendimentos` (já tem `client_id`+`professional_id`, falta só
-      ligar a uma `teleconsulta_id` opcional) vs. tabela nova `sessoes_clinicas` separada.
-      Pergunta feita ao Guilherme, resposta pendente.
+      `atendimentos` — menos novidade que anexos). ✅ **Decisão resolvida em 12/set**: estender
+      `atendimentos` (`teleconsulta_id` opcional), não criar `sessoes_clinicas` separada —
+      construído, ver §33.
+    - 🔎 **Terceira fonte checada (14/set): `webdiet.com.br/site` (site oficial de marketing,
+      não o MCP) + screenshots do Guilherme logado no próprio painel dele.** Sem login feito
+      por mim (credencial é ação vedada) — só página pública + prints que ele já tinha
+      tirado. Confirma a navegação principal batendo com os 3 gaps: aba **Marketing** =
+      site próprio + cadastro de parcerias (por trás do "Financeiro"/"Ferramentas" tem
+      papel timbrado próprio + gestão de equipe/acesso, mesmo padrão white-label que o
+      Vytra mira no §2). Achados:
+      - **Gap #1 (financeiro) confirmado nominalmente**: feature chamada "Sistema
+        financeiro" na página — "planejamento financeiro e emissão de recibos".
+      - **Diário alimentar fotográfico (achado do mcp.ai de 11/set) confirmado por fonte
+        oficial, não só pela página de marketing do MCP**: "Acompanhamento com diário
+        alimentar — diário fotográfico das refeições". Segue **fora da fila** (é
+        categoria diferente do check-in do Vytra), mas não é mais especulação — é feature
+        real e citada duas vezes por fontes independentes.
+      - **Gap #2 (prontuário evolutivo) não aparece nomeado** na página pública — só
+        "Anamnese completa" e "Questionários pré-consulta". Não desconfirma o gap (pode
+        estar dentro de "Anamnese completa" sem nome próprio), só não achei confirmação
+        direta feature-a-feature como no #1.
+      - **Não mapeado antes, fora dos 3 gaps mas relevante pro módulo dieta (§2)**:
+        **Body3D** (avaliação antropométrica por 2 fotos de celular → %gordura, massa
+        magra, circunferências, risco metabólico, IMC) e **"Inteligência Webdiet"** (IA
+        pra interpretar anamnese, gerar orientação nutricional, interpretar exame
+        laboratorial, sugerir metas — "Clara IA" no plano mais caro). **Não é gap
+        decidido** — só registrado pra não perder o achado, mesmo tratamento dado ao
+        diário alimentar em 11/set.
+      - Preço público (referência de mercado pro nosso próprio pricing do §2): Premium
+        R$49,90/mês promocional (3 meses, depois R$94,90), Black R$139,90/mês, plano
+        graduação gratuito.
+    - 🔎 **Quarta fonte (14/set): prints do painel logado do Guilherme, menus abertos
+      (Consultório/Estudos/Marketing/Ferramentas + menu rápido do avatar).** Confirma
+      estrutura completa de navegação:
+      - **Consultório**: Pacientes, Agendamentos, Pré-consulta, Respostas pré-consulta,
+        Meus favoritos, Meus alimentos, Receitas culinárias, **Diário alimentar**,
+        **Financeiro**, Impressos, Lixeira.
+      - **Estudos**: Lâminas, Cursos completos, WebDiet Cast, Biblioteca científica,
+        Casos clínicos, Pasta compartilhada, E-books, Blog.
+      - **Marketing**: WebDiet canvas, Mensagens do sistema, Modelos de mensagens,
+        Benefícios para pacientes, NutriLinks, Criador de site, Mailing captado.
+      - **Ferramentas**: Videochamada (nativa — Vytra usa link externo de Google Meet,
+        §5 `teleconsultas`), MoveHealth (paywall no plano básico — "Atualizar plano" pra
+        integrações), Estatísticas, Benefícios para você, Ver chat.
+      - **Menu rápido do avatar** (atalho pra 5 ações): nova tarefa, novo paciente, **novo
+        registro financeiro**, novo questionário, **novo arquivo no cloud**.
+      - **Gap #1 (financeiro) reforçado**: item de menu dedicado + atalho de criação
+        rápida — não é só "emitir recibo", é registro financeiro genérico.
+      - **Gap #3 (anexos) achado direto**: "novo arquivo no cloud" no atalho rápido +
+        "Impressos"/"Lixeira" no Consultório — confirma upload de arquivo genérico do
+        lado profissional (equivalente ao gap identificado). Ainda falta confirmar se é
+        por paciente ou só biblioteca geral do profissional — não deu pra ver a tela em
+        si, só o menu.
+      - **Gap #2 (prontuário evolutivo) segue sem confirmação direta**: nenhum item de
+        menu chamado "prontuário" ou "evolução"/"sessão clínica" nos 4 menus nem no atalho
+        rápido. Reforça a suspeita de 11/set — se existir, está sem nome próprio dentro de
+        "Anamnese"/"Pré-consulta", não como feature separada.
+      - **Achado novo, fora dos 3 gaps**: "planner"/tarefa do profissional ("Tarefa do
+        planner" — nome, descrição opcional, data programada) é lista de afazeres interna
+        do profissional, não relacionada a paciente. Vytra não tem equivalente. **Não é
+        gap decidido**, só registrado.
+      - **Ressalva**: conta nos prints parece de teste/vazia (gráfico "Histórico de
+        consultas" zerado em todos os meses, "Sem prescrições") — dá a estrutura de menu,
+        não o conteúdo real de uso. **É o próprio Guilherme logado como nutricionista de
+        teste**, não o Tassis nem dado de paciente real.
+    - 🔎 **Quinta fonte (14/set): tela de configuração de conta (avatar → 5 abas), NÃO a
+      tela "Financeiro" do Consultório** — print veio de área adjacente, ainda falta ver a
+      tela certa pra fechar gap #2/#3. Achado que emergiu de qualquer forma, relevante pro
+      desenho de cobrança em standby (§7, 11/set):
+      - Aba **"Pagamentos e transações"** aqui = cobrança **WebDiet→profissional** (a
+        própria assinatura dele: "alterar cartão", "notas fiscais do último ano") —
+        **separada** do "Financeiro" do menu Consultório (que é profissional→paciente).
+        É a mesma separação de dois fluxos que já desenhamos (Fluxo 1 paciente→
+        profissional vs. Fluxo 2 profissional→Vytra) — referência de UI real de um
+        concorrente pra quando o CNPJ destravar a implementação.
+      - Aba **"Usuários e secretária"**: multi-usuário por profissional (papel
+        secretária/administrativo), "Nenhum usuário criado" — Vytra não tem hoje (RLS é
+        1 profissional = 1 login). **Não é gap decidido**, só registrado — teria
+        implicação de RLS se um dia entrar (§0 aplica).
+      - Aba **"Personalização de logotipo e app"**: toggle por feature, default pra novos
+        pacientes (WebDiet app, MoveHealth, Webdiet+, chat, alerta hidratação,
+        questionário de frequência alimentar) — padrão parecido com o que o Vytra
+        provavelmente vai precisar quando tiver mais de um módulo opcional por plano.
+      - Aba **"Contatos de farmácias"**: lista de e-mail de farmácia parceira — não
+        mapeado, escopo pequeno, não é gap.
+      - **Ainda pendente**: tela real do "Financeiro" (Consultório), tela de anexo/
+        "Impressos"/"novo arquivo no cloud", e ficha de paciente aberta — únicos jeitos de
+        fechar gap #2 (prontuário) e confirmar o escopo exato do #3 (anexo por paciente
+        vs. biblioteca geral).
 
 ## 8. Estado atual
 
