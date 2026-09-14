@@ -2862,19 +2862,21 @@ tools), mesma técnica já usada no WebDiet — mais preciso que ler site de mar
   app citado pelo Tassis. Segue sem mapear — só resolve com print/link direto dele.
 
 Gaps reais encontrados, sem prioridade decidida (não tomei essa decisão), ordenados por quantos
-concorrentes convergem: **financeiro/cobrança** (4/5, já em construção), ~~**prontuário
-evolutivo**~~ (3/6 — ✅ **fechado 12/set**, ver §33), ~~**IA em prescrição**~~ (3/5 — reaberto
-14/set, ver §40: descarte original era "custo de infra" nunca medido de verdade; mitigado com
-modelo barato, gate de revisão obrigatória e tabela de auditoria de custo real), **anexo de
-paciente** (2/6, já priorizado), **chat in-app**, **diário alimentar livre**, **hábito+badge além
-de treino**, **app com marca própria entregue como produto pronto** (2/5 cada) — e mais sete
+concorrentes convergem: **financeiro/cobrança** (4/5, já em construção, bloqueado por CNPJ),
+~~**prontuário evolutivo**~~ (3/6 — ✅ **fechado 12/set**, ver §33), ~~**anexo de paciente**~~
+(2/6 — ✅ **fechado 12/set**, ver §35), **IA em prescrição** (3/5 — reaberto 14/set, ver §40:
+descarte original era "custo de infra" nunca medido de verdade; construído e deployado, mitigado
+com modelo barato/gate de revisão obrigatória/tabela de auditoria de custo real — **só falta o
+teste ponta a ponta do Guilherme**), **chat in-app**, **diário alimentar livre**, **hábito+badge
+além de treino**, **app com marca própria entregue como produto pronto** (2/5 cada) — e mais sete
 achados de sinal isolado (1 concorrente cada), listados no artifact pra não perder o achado.
 Vytra já ganha em 2 pontos que nenhum dos 5 tem: lista de compras dinâmica e o funil
 lead→convite→cadastro automático.
 
-✅ **Artifact atualizado (12/set)** com o fechamento do prontuário evolutivo — mesmo link:
-https://claude.ai/code/artifact/bb96e86e-042e-4231-a89e-263f9f0e18da (tabela-síntese e item
-04 da lista ranqueada marcados como feito).
+✅ **Artifact atualizado (14/set)** com os fechamentos de prontuário (§33) e anexo de paciente
+(§35) e a reabertura de IA (§40, ainda "parcial" — falta só o teste real) — mesmo link:
+https://claude.ai/code/artifact/bb96e86e-042e-4231-a89e-263f9f0e18da (tabela-síntese e itens
+04/05 da lista ranqueada marcados como feito, item 03 marcado como em andamento).
 
 ## 31. Dieta do aluno — accordion nas refeições, observações e lista de compras (11/set)
 
@@ -3069,7 +3071,7 @@ prontuário do §33).
   em §8/§26, passou na segunda). Bundle hash idêntico nos dois
   (`entry-1765a80c4300364cf4ac3e74b1b85371.js`), conferido por `curl` — `/aluno/anexos` também
   200 nos dois (`app-treino.expo.app` e `app.vytraoficial.com.br`).
-- Artifact do benchmark (§30) ainda não atualizado com este item marcado como feito.
+- ✅ Artifact do benchmark (§30) atualizado (14/set) com este item marcado como feito.
 
 ## 36. Guia de câmera pro check-in (12/set, ampliação do item 5)
 
