@@ -6,7 +6,10 @@ import { Body, Button, Caption, Card, Field, Pill, Screen, SectionTitle } from '
 import { formatarDataHora } from '@/models/domain';
 import { listarAlunos, listarMeusProfissionais } from '@/services/professionalService';
 import { atualizarPerfil, signOut } from '@/services/authService';
+import { rotuloEspecialidade } from '@/services/solicitacoesService';
 import { proximaTeleconsulta, type Teleconsulta } from '@/services/teleconsultaService';
+import { obterMinhaVerificacao, type VerificacaoProfissional } from '@/services/verificacaoService';
+import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
 import { Palette, Spacing } from '@/theme';
 
@@ -22,6 +25,12 @@ function rotuloSexo(sexo: string | null): string {
   return OPCOES_SEXO.find((o) => o.valor === sexo)?.label ?? '—';
 }
 
+const ROTULOS_STATUS_VERIFICACAO: Record<string, string> = {
+  pendente: 'Em análise',
+  aprovado: 'Aprovado',
+  rejeitado: 'Rejeitado',
+};
+
 export function PerfilScreen() {
   const router = useRouter();
   const user = useAuthStore((s) => s.user);
@@ -30,6 +39,8 @@ export function PerfilScreen() {
   const isProfessional = useAuthStore((s) => s.isProfessional);
   const [vinculos, setVinculos] = useState<Vinculo[]>([]);
   const [proximaConsulta, setProximaConsulta] = useState<Teleconsulta | null>(null);
+  const [especialidade, setEspecialidade] = useState<string | null>(null);
+  const [verificacao, setVerificacao] = useState<VerificacaoProfissional | null>(null);
 
   const [editando, setEditando] = useState(false);
   const [nome, setNome] = useState('');
@@ -52,6 +63,13 @@ export function PerfilScreen() {
           })),
         ),
       );
+      supabase
+        .from('professionals')
+        .select('especialidade')
+        .eq('id', user.id)
+        .maybeSingle()
+        .then(({ data }) => setEspecialidade(data?.especialidade ?? null));
+      obterMinhaVerificacao(user.id).then(setVerificacao);
     } else {
       listarMeusProfissionais(user.id).then((profissionais) =>
         setVinculos(
@@ -104,14 +122,25 @@ export function PerfilScreen() {
     }
   }
 
-  const dados = [
-    { label: 'E-mail', valor: profile?.email ?? '—' },
-    { label: 'Telefone', valor: profile?.telefone || '—' },
-    { label: 'Data de nascimento', valor: profile?.data_nascimento || '—' },
-    { label: 'Sexo', valor: rotuloSexo(profile?.sexo ?? null) },
-    { label: 'Peso', valor: profile?.peso_kg ? `${profile.peso_kg} kg` : '—' },
-    { label: 'Altura', valor: profile?.altura_cm ? `${profile.altura_cm} cm` : '—' },
-  ];
+  const dados = isProfessional
+    ? [
+        { label: 'E-mail', valor: profile?.email ?? '—' },
+        { label: 'Telefone', valor: profile?.telefone || '—' },
+        { label: 'Especialidade', valor: especialidade ? rotuloEspecialidade(especialidade) : '—' },
+        { label: 'Registro', valor: verificacao ? `${verificacao.numeroRegistro} / ${verificacao.ufRegistro}` : '—' },
+        {
+          label: 'Verificação',
+          valor: verificacao ? ROTULOS_STATUS_VERIFICACAO[verificacao.status] ?? verificacao.status : '—',
+        },
+      ]
+    : [
+        { label: 'E-mail', valor: profile?.email ?? '—' },
+        { label: 'Telefone', valor: profile?.telefone || '—' },
+        { label: 'Data de nascimento', valor: profile?.data_nascimento || '—' },
+        { label: 'Sexo', valor: rotuloSexo(profile?.sexo ?? null) },
+        { label: 'Peso', valor: profile?.peso_kg ? `${profile.peso_kg} kg` : '—' },
+        { label: 'Altura', valor: profile?.altura_cm ? `${profile.altura_cm} cm` : '—' },
+      ];
 
   return (
     <Screen title="Perfil" subtitle={isProfessional ? 'Profissional' : 'Aluno'}>
@@ -126,27 +155,31 @@ export function PerfilScreen() {
               placeholder="(11) 99999-9999"
               keyboardType="default"
             />
-            <Field
-              label="Data de nascimento"
-              value={dataNascimento}
-              onChangeText={setDataNascimento}
-              placeholder="AAAA-MM-DD"
-            />
-            <Caption>Sexo</Caption>
-            <View style={styles.rowFields}>
-              {OPCOES_SEXO.map((opcao) => (
-                <Pill
-                  key={opcao.valor}
-                  label={opcao.label}
-                  active={sexo === opcao.valor}
-                  onPress={() => setSexo((atual) => (atual === opcao.valor ? null : opcao.valor))}
+            {!isProfessional ? (
+              <>
+                <Field
+                  label="Data de nascimento"
+                  value={dataNascimento}
+                  onChangeText={setDataNascimento}
+                  placeholder="AAAA-MM-DD"
                 />
-              ))}
-            </View>
-            <View style={styles.rowFields}>
-              <Field label="Peso (kg)" value={peso} onChangeText={setPeso} keyboardType="decimal-pad" />
-              <Field label="Altura (cm)" value={altura} onChangeText={setAltura} keyboardType="decimal-pad" />
-            </View>
+                <Caption>Sexo</Caption>
+                <View style={styles.rowFields}>
+                  {OPCOES_SEXO.map((opcao) => (
+                    <Pill
+                      key={opcao.valor}
+                      label={opcao.label}
+                      active={sexo === opcao.valor}
+                      onPress={() => setSexo((atual) => (atual === opcao.valor ? null : opcao.valor))}
+                    />
+                  ))}
+                </View>
+                <View style={styles.rowFields}>
+                  <Field label="Peso (kg)" value={peso} onChangeText={setPeso} keyboardType="decimal-pad" />
+                  <Field label="Altura (cm)" value={altura} onChangeText={setAltura} keyboardType="decimal-pad" />
+                </View>
+              </>
+            ) : null}
             {erro ? <Caption color={Palette.danger}>{erro}</Caption> : null}
             <View style={styles.acoes}>
               <Button label="Cancelar" variant="ghost" onPress={() => setEditando(false)} disabled={salvando} />

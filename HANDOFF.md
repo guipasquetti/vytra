@@ -1,8 +1,8 @@
 # Vytra — Handoff
 
 > Documento de contexto para replicar o estado do projeto em outro chat.
-> Última atualização: 14/Setembro/2026 — landing (`vytraoficial.com.br`) achada fora do ar
-> (deploy Ready servindo 404) e corrigida com redeploy, ver §43.
+> Última atualização: 14/Setembro/2026 — perfil do profissional parou de mostrar campo de
+> aluno (peso/altura/sexo/nascimento), deploy publicado nos dois hosts, ver §44.
 
 > **Fonte canônica:** este arquivo, na raiz do repositório. Todo agente (Codex ou Claude) deve lê-lo antes de alterar o projeto e atualizá-lo ao concluir mudanças relevantes, decisões, migrações, configuração de infraestrutura ou bloqueios.
 
@@ -3399,3 +3399,34 @@ de conteúdo correto.
 em `vytraoficial.com.br`, `www.vytraoficial.com.br` e `vytra-pi.vercel.app` — os três 200.
 Não investigada a causa raiz do deploy anterior ter build vazio (não crítico agora que
 resolveu; se repetir, comparar `vercel inspect --logs` do deploy quebrado com um bom).
+
+## 44. Perfil do profissional mostrava campos de aluno (14/set)
+
+✅ Pedido do Guilherme: perfil de nutricionista/educador físico
+([`components/perfil-screen.tsx`](src/components/perfil-screen.tsx), compartilhado entre os
+dois papéis desde sempre, ver §6) mostrava peso/altura/sexo/data de nascimento — campos de
+saúde do **aluno**, sem sentido pro profissional, que nunca preenche isso.
+
+- **View (modo leitura)**: profissional agora vê e-mail, telefone, especialidade (via
+  `rotuloEspecialidade`, já existia em `solicitacoesService.ts`), número de registro (CREF/CRN
+  + UF) e status da verificação (`professional_verificacoes`, lido por
+  `obterMinhaVerificacao`) — todos dados que já existiam no banco, só não apareciam aqui. Aluno
+  não muda: continua com nascimento/sexo/peso/altura.
+- **Form de edição**: os campos de sexo/peso/altura/data de nascimento (JSX e `<Field>`) somem
+  do form quando `isProfessional`, ficam só nome/telefone pros dois papéis. `salvar()` não
+  mudou — como esses campos nunca aparecem pro profissional, o estado deles fica no valor
+  vazio inicial e o update não sobrescreve nada de verdade.
+- **Decisão consciente: registro (CREF/CRN) e bio ficaram só leitura, não editáveis aqui.**
+  Achado ao investigar RLS de `professional_verificacoes`: a policy
+  `professional_verificacoes_update_self` tem `with_check (... and status = 'pendente')` — todo
+  self-update força o status de volta pra `pendente` (§8, é o mecanismo de reenvio pós-rejeição,
+  de propósito). Se editar bio virasse editável aqui, um profissional já **aprovado** cairia de
+  volta em análise só por trocar um texto — bug de produto, não intencional. Deixar editável
+  exige fluxo dedicado (avisando que reabre verificação), não é escopo desta mudança.
+- `npx tsc --noEmit` limpo. **Não testado logado** — mesma regra de sempre (nunca senha de
+  conta digitada por agente); vale conferência visual do Guilherme nos dois papéis.
+- **Deploy publicado nos dois hosts (14/set)**: `npx expo export --platform web` → `npx eas
+  deploy --prod` → `npx vercel deploy dist --project vytra-app --prod --yes`. Bundle
+  `entry-0a18ab62e1850b6d0b608394bfb9024b.js`, conferido por `curl` (não só status — o `body`
+  com o nome do bundle, lição do §43) nos dois: `app-treino.expo.app` e
+  `app.vytraoficial.com.br`, mesmo hash nos dois, ambos 200.
