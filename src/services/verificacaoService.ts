@@ -7,8 +7,8 @@ export type StatusVerificacao = 'pendente' | 'aprovado' | 'rejeitado';
 export type TipoRegistro = 'CREF' | 'CRN';
 
 const ROTULOS_TIPO_REGISTRO: Record<TipoRegistro, string> = {
-  CREF: 'Educador físico',
-  CRN: 'Nutricionista',
+  CREF: 'EF',
+  CRN: 'NT',
 };
 
 export function rotuloTipoRegistro(tipo: string | null): string | null {

@@ -1,9 +1,8 @@
 # Vytra — Handoff
 
 > Documento de contexto para replicar o estado do projeto em outro chat.
-> Última atualização: 14/Setembro/2026 — Painel/abas/selo pararam de depender de
-> `especialidade` sozinha, passam a olhar o plano de cada paciente (caso real: nutricionista
-> que também treina), ver §46. Ainda pendente: drift de segurança nos 4 helpers RPC (§45).
+> Última atualização: 14/Setembro/2026 — drift de segurança dos 4 helpers RPC corrigido, selo
+> com sigla (EF/NT) em vez de nome completo, ver §47.
 
 > **Fonte canônica:** este arquivo, na raiz do repositório. Todo agente (Codex ou Claude) deve lê-lo antes de alterar o projeto e atualizá-lo ao concluir mudanças relevantes, decisões, migrações, configuração de infraestrutura ou bloqueios.
 
@@ -3580,4 +3579,30 @@ conhecida desde o kickoff (§1: "fora de escopo agora, não travar N:N pra isso 
   tipo de registro.
 - **Deploy publicado nos dois hosts (14/set)**: mesmo pipeline de sempre. Bundle
   `entry-10d83e83c697de6812315304645a4023.js`, hash igual e 200 nos dois
+  (`app-treino.expo.app`, `app.vytraoficial.com.br`).
+
+## 47. Drift de segurança do §45 corrigido + selo com sigla (14/set)
+
+✅ **Drift dos 4 helpers de RLS, corrigido.** `is_trainer`/`is_professional`/
+`is_professional_of`/`is_client_of` estavam com `EXECUTE` em `PUBLIC` de novo (achado no §45,
+não corrigido lá de propósito). Migração
+[`20260914_revoga_public_helpers_rls.sql`](supabase/migrations/20260914_revoga_public_helpers_rls.sql),
+aplicada em produção: `revoke ... from public` + `grant ... to authenticated` nos 4. Verificado
+por `information_schema.routine_privileges` antes/depois (só `PUBLIC` some, `authenticated`
+mantém) e por `get_advisors(security)` (os 4 saem da lista de achados `anon`-chamável; resto é
+warning já conhecido/aceito — RPCs de convite/anamnese anon-chamáveis por design, leaked
+password protection, `cobranca_eventos` sem policy de select). Causa raiz da regressão
+continua não investigada (provável `create or replace function` em algum momento entre 04/set
+e 14/set sem reaplicar o revoke) — não é crítico agora que corrigido, mas se acontecer nos
+mesmos 4 (ou em `obter_selo_profissionais`) de novo, vale rodar `get_advisors(security)` depois
+de qualquer `create or replace function` que toque nesses nomes.
+
+✅ **Selo com sigla, não nome completo** (Guilherme, 14/set): `rotuloTipoRegistro()`
+([verificacaoService.ts](src/services/verificacaoService.ts)) passa a devolver `EF`/`NT` em
+vez de "Educador físico"/"Nutricionista" — o selo no perfil (próprio e "Meus profissionais" do
+aluno) fica mais compacto. O form de `pro/cadastro-editar.tsx` (pills pra escolher o conselho)
+continua com o nome por extenso ali — é formulário, não selo, clareza importa mais que
+compacidade nesse contexto.
+- **Deploy publicado nos dois hosts (14/set)**: mesmo pipeline de sempre. Bundle
+  `entry-d27b58cf2196c7e394f91b952e5dfd68.js`, hash igual e 200 nos dois
   (`app-treino.expo.app`, `app.vytraoficial.com.br`).
