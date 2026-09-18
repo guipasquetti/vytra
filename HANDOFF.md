@@ -4063,3 +4063,8 @@ momento, não só quando existe comparação.
   sem diff): abre em tela cheia, fecha pelo X e tocando fora, sem erro no console.
   `npx tsc --noEmit` limpo.
 - **Não testado logado** — depende de foto real de check-in.
+- **Deploy publicado nos dois hosts (18/set)**: mesmo atraso de CDN do `app-treino.expo.app`
+  já registrado antes (§53) — 2 rodadas de `eas deploy --prod` até o alias de produção
+  refletir (a URL própria do deployment sempre esteve certa na hora). Bundle final
+  `entry-ffb5aaac6cfd8f24f0890f91822da864.js`, conferido por `curl` (body, não só status) nos
+  dois: `app-treino.expo.app` e `app.vytraoficial.com.br`, hash igual, ambos 200.
