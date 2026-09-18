@@ -4068,3 +4068,62 @@ momento, não só quando existe comparação.
   refletir (a URL própria do deployment sempre esteve certa na hora). Bundle final
   `entry-ffb5aaac6cfd8f24f0890f91822da864.js`, conferido por `curl` (body, não só status) nos
   dois: `app-treino.expo.app` e `app.vytraoficial.com.br`, hash igual, ambos 200.
+
+## 56. Análise automática de fotos de check-in por IA com visão (18/set)
+
+✅ Pedido do Guilherme, continuação do §54/§55: quer análise automática (não sob demanda) das
+fotos de progresso, considerações de proporção/postura/simetria pro treinador e nutricionista,
+usando comparação entre check-ins já que o app padronizou pose/ângulo (silhueta-guia, §39) —
+"dá até pra fazer uma análise comparativa entre uma e outra de forma facilitada". Decisão
+explícita dele: usar Sonnet mesmo sendo mais caro que o Haiku do §40, e histórico/indicadores,
+não só a foto isolada.
+
+⚠️ **LGPD — sensibilidade acima do que já existe, ação pendente nova**: diferente do §40 (só
+texto curado da anamnese vai pra Anthropic), aqui vai **imagem do corpo do paciente** —
+transferência internacional de dado biométrico, categoria mais sensível que saúde em texto. O
+termo de consentimento (fora do repo, §14/§40) precisa cobrir isso explicitamente, com
+sign-off do Guilherme, **antes de qualquer paciente real passar por essa tela** — mesma
+pendência do §40, agora maior. Implementado a pedido dele nesta sessão; ele decide quando abrir
+pra paciente de verdade.
+
+- **Migração** [`20260918_analise_ia_fotos_checkin.sql`](supabase/migrations/20260918_analise_ia_fotos_checkin.sql),
+  aplicada em produção: `ia_geracoes.tipo` ganha `'analise_fotos'` (reusa a mesma tabela de
+  auditoria de custo real do §40, não duplica). Tabela nova `analises_fotos_checkin`
+  (`subscription_id`, `checkin_id` único, `checkin_anterior_id` nullable — qual check-in foi
+  usado de base pra comparação —, `resumo`, `indicadores` jsonb). **Decisão de produto: só o
+  profissional lê essa tabela, nunca o paciente** — é leitura de apoio técnico/clínico, tipo
+  prontuário (§33), não conteúdo pra paciente interpretar sozinho sem contexto; RLS restringe a
+  `is_professional_of` com assinatura ativa, mesma checagem de `pode_ler_foto_checkin` (§54).
+  `get_advisors(security)` depois: nenhum achado novo.
+- **Edge Function nova** [`analyze-checkin-photos`](supabase/functions/analyze-checkin-photos/index.ts)
+  (`claude-sonnet-5`, `verify_jwt: true`): recebe `checkinId`, usa a RLS de `check_ins_select`
+  como a própria checagem de autorização (se a linha não vier pro JWT de quem chamou, não
+  autorizado — sem RPC extra), busca o check-in anterior da mesma assinatura que tenha foto
+  (pra comparação), baixa as fotos do bucket privado `fotos-checkin` e manda como blocos de
+  imagem base64 pro Claude (não manda URL — bucket é privado, mais simples e confiável baixar e
+  codificar no servidor do que confiar em fetch de URL assinada pelo lado da Anthropic).
+  Resposta forçada por tool (`emitir_analise_fotos`: `resumo` + `indicadores[]` tipados) — mesmo
+  padrão de tool-forçada do §40. Roda em background via `EdgeRuntime.waitUntil` (mesmo padrão
+  de `generate-exercise-illustration`), nunca trava quem chamou. Sem foto no check-in = sem
+  chamada nenhuma, zero custo. Sem retry automático — falha vira linha `falha_api`/
+  `falha_validacao` em `ia_geracoes`, sem re-tentativa.
+- **Prompt** deixa explícito: nunca diagnóstico, nunca número exato de peso/gordura (só
+  qualitativo — "aparenta", "sugere"), nunca comenta identidade/rosto, e usa o padrão de
+  pose/enquadramento do app como justificativa de por que comparação de ângulo é mais confiável
+  que estimativa absoluta.
+- **Dispara automaticamente** em [`checkinService.ts`](src/services/checkinService.ts) —
+  `submeterCheckin` (checkin novo) e `corrigirCheckin` (correção dentro da janela de 24h, §14)
+  chamam `dispararAnaliseFotosCheckin` fire-and-forget depois de gravar, mesmo padrão de
+  `dispararGeracaoIlustracoes` (§40/`illustrationService.ts`) — nunca trava o envio do check-in
+  se a análise falhar.
+- **UI** em [`pro/aluno/[id]/resumo.tsx`](src/app/pro/aluno/%5Bid%5D/resumo.tsx): cada card da
+  seção "Fotos enviadas" (§54) ganha a análise de IA embaixo das fotos (resumo + indicadores),
+  com aviso "· comparada com o check-in anterior" quando houve base de comparação; sem análise
+  ainda (gerando em background, falhou, ou check-in anterior a 18/set) mostra "Sem análise de
+  IA pra este check-in" em vez de nada. Busca em lote (`listarAnalisesFotos`), não uma query por
+  check-in.
+- `npx tsc --noEmit` limpo. `database.types.ts` regenerado via `generate_typescript_types`
+  (tabela nova adicionada manualmente ao arquivo local, mesmo conteúdo que a API devolveu).
+- **Não testado de ponta a ponta** — depende de check-in real com foto, chave `ANTHROPIC_API_KEY`
+  já configurada desde o §40. Não disparei a function de verdade nesta sessão (gastaria chamada
+  real ao Sonnet sem paciente de teste ainda pronto); revisão foi só de código + `tsc`.

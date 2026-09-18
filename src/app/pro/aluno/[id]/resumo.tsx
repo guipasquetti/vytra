@@ -24,10 +24,12 @@ import { listarAnexosDaAssinatura, obterUrlAnexo, type Anexo } from '@/services/
 import {
   historicoPeso,
   historicoPontuacao,
+  listarAnalisesFotos,
   listarCheckinsDoAluno,
   listarGaleriaCheckins,
   obterComparacaoFotos,
   resumoAdesao,
+  type AnaliseFotosCheckin,
   type ComparacaoAngulo,
   type GaleriaCheckin,
 } from '@/services/checkinService';
@@ -53,6 +55,7 @@ export default function ResumoPacienteScreen() {
   const [consultas, setConsultas] = useState<{ id: string; data_hora: string; status: string; observacoes: string | null }[]>([]);
   const [evolucao, setEvolucao] = useState<Evolucao | null>(null);
   const [galeria, setGaleria] = useState<GaleriaCheckin[]>([]);
+  const [analisesFotos, setAnalisesFotos] = useState<Record<string, AnaliseFotosCheckin>>({});
   const [prontuario, setProntuario] = useState<Atendimento[]>([]);
   const [anexos, setAnexos] = useState<Anexo[]>([]);
   const [notaTexto, setNotaTexto] = useState('');
@@ -93,6 +96,7 @@ export default function ResumoPacienteScreen() {
       setProntuario(atendimentos);
       setAnexos(docs);
       setGaleria(galeriaFotos);
+      setAnalisesFotos(await listarAnalisesFotos(galeriaFotos.map((g) => g.checkinId)));
     }
     setLoading(false);
   }, [clientId, user]);
@@ -236,19 +240,39 @@ export default function ResumoPacienteScreen() {
       {galeria.length ? (
         <>
           <SectionTitle>Fotos enviadas</SectionTitle>
-          {galeria.map((g) => (
-            <Card key={g.checkinId}>
-              <Caption color={Palette.textTertiary}>{formatarDataHora(g.data)}</Caption>
-              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm }}>
-                {g.fotos.map((f) => (
-                  <View key={f.angulo} style={{ gap: Spacing.xs }}>
-                    <FotoAmpliavel uri={f.url} />
-                    <Caption>{f.label}</Caption>
+          {galeria.map((g) => {
+            const analise = analisesFotos[g.checkinId];
+            return (
+              <Card key={g.checkinId}>
+                <Caption color={Palette.textTertiary}>{formatarDataHora(g.data)}</Caption>
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm }}>
+                  {g.fotos.map((f) => (
+                    <View key={f.angulo} style={{ gap: Spacing.xs }}>
+                      <FotoAmpliavel uri={f.url} />
+                      <Caption>{f.label}</Caption>
+                    </View>
+                  ))}
+                </View>
+                {analise ? (
+                  <View style={{ gap: Spacing.xs, marginTop: Spacing.sm }}>
+                    <Caption color={Palette.accent}>
+                      Análise de IA{analise.checkinAnteriorId ? ' · comparada com o check-in anterior' : ''}
+                    </Caption>
+                    <Body>{analise.resumo}</Body>
+                    {analise.indicadores.map((ind, i) => (
+                      <Caption key={i}>
+                        {ind.rotulo}: {ind.observacao}
+                      </Caption>
+                    ))}
                   </View>
-                ))}
-              </View>
-            </Card>
-          ))}
+                ) : (
+                  <Caption color={Palette.textTertiary} style={{ marginTop: Spacing.sm }}>
+                    Sem análise de IA pra este check-in.
+                  </Caption>
+                )}
+              </Card>
+            );
+          })}
         </>
       ) : null}
 

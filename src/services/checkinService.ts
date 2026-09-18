@@ -10,6 +10,18 @@ const PERIODICIDADE_DIAS = 14;
  * (`check_ins_update_self`). Não é edição livre do histórico, só correção de erro recente. */
 const JANELA_EDICAO_HORAS = 24;
 
+/**
+ * Dispara (fire-and-forget, nunca trava o envio do check-in) a análise por IA das fotos —
+ * a Edge Function mesma checa se tem foto de verdade e se não tiver não gasta chamada nenhuma.
+ * Mesmo padrão de `dispararGeracaoIlustracoes` em `illustrationService.ts`.
+ */
+function dispararAnaliseFotosCheckin(checkinId: string): void {
+  supabase.functions.invoke('analyze-checkin-photos', { body: { checkinId } }).catch(() => {
+    // Nunca deveria travar o envio do check-in por causa da análise — se falhar, o profissional
+    // só não vê a análise de IA pra esse check-in.
+  });
+}
+
 /** Envia um check-in — série temporal, nunca sobrescrita (§14: cada envio é uma linha nova). */
 export async function submeterCheckin(
   clientId: string,
@@ -19,21 +31,26 @@ export async function submeterCheckin(
   fotos: FotosCheckin,
 ): Promise<ResumoCheckin> {
   const resumo = calcularResumo(respostas);
-  const { error } = await supabase.from('check_ins').insert({
-    client_id: clientId,
-    professional_id: professionalId,
-    subscription_id: subscriptionId,
-    respostas,
-    pontuacao_geral: resumo.pontuacaoGeral,
-    pontuacao_categorias: Object.fromEntries(
-      resumo.categorias.map((c) => [c.categoria, { valor: c.pontuacao, rotulo: c.rotulo }]),
-    ),
-    foto_frente_path: fotos.frente ?? null,
-    foto_perfil_esquerdo_path: fotos.esquerdo ?? null,
-    foto_perfil_direito_path: fotos.direito ?? null,
-    foto_costas_path: fotos.costas ?? null,
-  });
+  const { data, error } = await supabase
+    .from('check_ins')
+    .insert({
+      client_id: clientId,
+      professional_id: professionalId,
+      subscription_id: subscriptionId,
+      respostas,
+      pontuacao_geral: resumo.pontuacaoGeral,
+      pontuacao_categorias: Object.fromEntries(
+        resumo.categorias.map((c) => [c.categoria, { valor: c.pontuacao, rotulo: c.rotulo }]),
+      ),
+      foto_frente_path: fotos.frente ?? null,
+      foto_perfil_esquerdo_path: fotos.esquerdo ?? null,
+      foto_perfil_direito_path: fotos.direito ?? null,
+      foto_costas_path: fotos.costas ?? null,
+    })
+    .select('id')
+    .single();
   if (error) throw error;
+  dispararAnaliseFotosCheckin(data.id);
   return resumo;
 }
 
@@ -69,6 +86,7 @@ export async function corrigirCheckin(
     })
     .eq('id', id);
   if (error) throw error;
+  dispararAnaliseFotosCheckin(id);
   return resumo;
 }
 
@@ -195,6 +213,39 @@ export async function listarGaleriaCheckins(subscriptionId: string): Promise<Gal
       if (url) fotos.push({ angulo: a.angulo, label: a.label, url });
     }
     if (fotos.length) resultado.push({ checkinId: c.id, data: c.created_at, fotos });
+  }
+  return resultado;
+}
+
+export type IndicadorAnaliseFotos = { rotulo: string; observacao: string };
+export type AnaliseFotosCheckin = {
+  checkinId: string;
+  checkinAnteriorId: string | null;
+  resumo: string;
+  indicadores: IndicadorAnaliseFotos[];
+};
+
+/**
+ * Análises de IA já prontas pros check-ins informados, indexadas por `checkinId` — busca em
+ * lote (uma query só) pra usar junto de `listarGaleriaCheckins` sem N chamadas. Check-in sem
+ * chave no retorno = ainda sem análise (gerando em background, falhou, ou é anterior a 18/set,
+ * antes dessa feature existir) — quem chama decide como tratar a ausência, não é erro.
+ */
+export async function listarAnalisesFotos(checkinIds: string[]): Promise<Record<string, AnaliseFotosCheckin>> {
+  if (!checkinIds.length) return {};
+  const { data, error } = await supabase
+    .from('analises_fotos_checkin')
+    .select('checkin_id, checkin_anterior_id, resumo, indicadores')
+    .in('checkin_id', checkinIds);
+  if (error) throw error;
+  const resultado: Record<string, AnaliseFotosCheckin> = {};
+  for (const row of data ?? []) {
+    resultado[row.checkin_id] = {
+      checkinId: row.checkin_id,
+      checkinAnteriorId: row.checkin_anterior_id,
+      resumo: row.resumo,
+      indicadores: (row.indicadores ?? []) as IndicadorAnaliseFotos[],
+    };
   }
   return resultado;
 }

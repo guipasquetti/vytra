@@ -56,6 +56,58 @@ export type Database = {
         }
         Relationships: []
       }
+      analises_fotos_checkin: {
+        Row: {
+          checkin_anterior_id: string | null
+          checkin_id: string
+          created_at: string
+          id: string
+          indicadores: Json
+          resumo: string
+          subscription_id: string
+        }
+        Insert: {
+          checkin_anterior_id?: string | null
+          checkin_id: string
+          created_at?: string
+          id?: string
+          indicadores?: Json
+          resumo: string
+          subscription_id: string
+        }
+        Update: {
+          checkin_anterior_id?: string | null
+          checkin_id?: string
+          created_at?: string
+          id?: string
+          indicadores?: Json
+          resumo?: string
+          subscription_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "analises_fotos_checkin_checkin_anterior_id_fkey"
+            columns: ["checkin_anterior_id"]
+            isOneToOne: false
+            referencedRelation: "check_ins"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "analises_fotos_checkin_checkin_id_fkey"
+            columns: ["checkin_id"]
+            isOneToOne: true
+            referencedRelation: "check_ins"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "analises_fotos_checkin_subscription_id_fkey"
+            columns: ["subscription_id"]
+            isOneToOne: false
+            referencedRelation: "subscriptions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       anamnese: {
         Row: {
           alergias: string
