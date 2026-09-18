@@ -3936,3 +3936,6 @@ uma data pra agendar algo (só validação por regex no `salvar()`, já existent
   calendário sozinho, sem erro no console. `npx tsc --noEmit` limpo.
 - **Não testado logado** — as 3 telas reais (agendar teleconsulta, retomar lead, editar perfil)
   dependem de conta real (aluno/pro), mesma regra de sempre.
+- **Deploy publicado nos dois hosts (18/set)**: mesmo pipeline de sempre. Bundle
+  `entry-8ff8a0e746f28c1ce4e012798701d700.js`, conferido por `curl` (body, não só status) nos
+  dois: `app-treino.expo.app` e `app.vytraoficial.com.br`, hash igual, ambos 200.
