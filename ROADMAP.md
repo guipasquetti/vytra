@@ -123,7 +123,10 @@ construídos.
   biblioteca, para que a experiência não fique predominantemente branca; nunca inferir,
   registrar ou exigir raça/etnia do paciente para escolher uma imagem. Dependências: sistema de
   direção de arte, revisão de acessibilidade/representação e revalidação clínica das poses.
-  **Status: Não iniciado.**
+  **Status: Em andamento — biblioteca inicial de 16 referências (quatro ângulos para quatro
+  representações) criada e primeiro lote com quatro exercícios diversos integrado ao catálogo
+  estático. Regra adotada: novos exercícios devem alternar representações de forma equilibrada;
+  faltam outras representações e a regra de curadoria/rotação no app.**
 - Versionamento completo de planos e comparação de evolução por ciclo.
 - Indicadores agregados de negócio e aderência por profissional.
 - White-label visual, integrações de saúde, marketplace/diretório e apps nativos.

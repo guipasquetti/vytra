@@ -27,6 +27,10 @@ const illustrations: readonly ExerciseIllustration[] = [
     aliases: ['agachamento smith', 'agachamento hack', 'agachamento livre'],
     source: require('../../assets/exercises/agachamento-smith-hack-ou-livre.png'),
   },
+  {
+    aliases: ['agachamento goblet', 'goblet squat'],
+    source: require('../../assets/exercises/agachamento-goblet.png'),
+  },
   { aliases: ['bulgaro', 'afundo bulgaro'], source: require('../../assets/exercises/bulgaro.png') },
   { aliases: ['cadeira abdutora'], source: require('../../assets/exercises/cadeira-abdutora.png') },
   { aliases: ['cadeira adutora'], source: require('../../assets/exercises/cadeira-adutora.png') },
@@ -84,8 +88,16 @@ const illustrations: readonly ExerciseIllustration[] = [
   },
   { aliases: ['remada serrote'], source: require('../../assets/exercises/remada-serrote-com-halter.png') },
   {
+    aliases: ['remada curvada', 'remada curvada barra'],
+    source: require('../../assets/exercises/remada-curvada-com-barra.png'),
+  },
+  {
     aliases: ['rosca martelo'],
     source: require('../../assets/exercises/rosca-martelo-unilateral-com-halter.png'),
+  },
+  {
+    aliases: ['rosca direta', 'rosca barra ez', 'rosca direta barra ez'],
+    source: require('../../assets/exercises/rosca-direta-barra-ez.png'),
   },
   {
     aliases: ['rosca unilateral', 'rosca com halter'],
@@ -95,6 +107,10 @@ const illustrations: readonly ExerciseIllustration[] = [
   {
     aliases: ['supino declinado'],
     source: require('../../assets/exercises/supino-declinado-maquina-ou-banco.png'),
+  },
+  {
+    aliases: ['supino inclinado', 'supino inclinado halter', 'supino inclinado com halteres'],
+    source: require('../../assets/exercises/supino-inclinado-com-halteres.png'),
   },
   {
     aliases: ['supino reto'],

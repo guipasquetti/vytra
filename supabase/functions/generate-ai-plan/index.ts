@@ -17,14 +17,15 @@ const MODELO = 'claude-haiku-4-5-20251001';
 // Cópia intencional dos nomes canônicos de `src/lib/exerciseIllustrations.ts` (esse arquivo faz
 // `require()` de PNG e não roda em Deno) — se adicionar ilustração nova lá, atualizar aqui também.
 const EXERCICIOS_CATALOGO = [
-  'Abdominal banco 45', 'Abdominal infra', 'Agachamento smith', 'Búlgaro', 'Cadeira abdutora',
+  'Abdominal banco 45', 'Abdominal infra', 'Agachamento smith', 'Agachamento goblet', 'Búlgaro', 'Cadeira abdutora',
   'Cadeira adutora', 'Cadeira extensora', 'Cadeira flexora', 'Crucifixo inverso',
   'Crucifixo máquina', 'Desenvolvimento máquina', 'Elevação frontal', 'Elevação lateral na polia',
   'Elevação lateral', 'Elevação pélvica', 'Hiperextensão lombar', 'Panturrilha em pé',
   'Leg press', 'Mesa flexora', 'Prancha', 'Pull down', 'Puxada alta barra reta',
   'Puxada alta pegada neutra', 'Remada com peito apoiado', 'Remada máquina cotovelos altos',
-  'Remada serrote', 'Rosca martelo', 'Rosca unilateral', 'Stiff', 'Supino declinado',
-  'Supino reto', 'Tríceps coice', 'Tríceps corda',
+  'Remada serrote', 'Remada curvada com barra', 'Rosca martelo', 'Rosca direta com barra EZ',
+  'Rosca unilateral', 'Stiff', 'Supino declinado', 'Supino inclinado com halteres', 'Supino reto',
+  'Tríceps coice', 'Tríceps corda',
 ];
 
 // Chaves permitidas de `anamnese.respostas_completas` por tipo — nunca identidade (nome, telefone,

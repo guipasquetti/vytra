@@ -15,14 +15,15 @@ const MODELO = 'gpt-image-1';
 // Mesma lista de `supabase/functions/generate-ai-plan/index.ts` (cópia intencional, ver comentário
 // lá) — nomes que já têm ilustração estática no app, nunca precisam de geração.
 const EXERCICIOS_CATALOGO_NORMALIZADOS = [
-  'Abdominal banco 45', 'Abdominal infra', 'Agachamento smith', 'Búlgaro', 'Cadeira abdutora',
+  'Abdominal banco 45', 'Abdominal infra', 'Agachamento smith', 'Agachamento goblet', 'Búlgaro', 'Cadeira abdutora',
   'Cadeira adutora', 'Cadeira extensora', 'Cadeira flexora', 'Crucifixo inverso',
   'Crucifixo máquina', 'Desenvolvimento máquina', 'Elevação frontal', 'Elevação lateral na polia',
   'Elevação lateral', 'Elevação pélvica', 'Hiperextensão lombar', 'Panturrilha em pé',
   'Leg press', 'Mesa flexora', 'Prancha', 'Pull down', 'Puxada alta barra reta',
   'Puxada alta pegada neutra', 'Remada com peito apoiado', 'Remada máquina cotovelos altos',
-  'Remada serrote', 'Rosca martelo', 'Rosca unilateral', 'Stiff', 'Supino declinado',
-  'Supino reto', 'Tríceps coice', 'Tríceps corda',
+  'Remada serrote', 'Remada curvada com barra', 'Rosca martelo', 'Rosca direta com barra EZ',
+  'Rosca unilateral', 'Stiff', 'Supino declinado', 'Supino inclinado com halteres', 'Supino reto',
+  'Tríceps coice', 'Tríceps corda',
 ].map(normalizarNomeExercicio);
 
 function jaTemIlustracaoEstatica(nomeNormalizado: string): boolean {

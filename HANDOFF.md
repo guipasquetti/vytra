@@ -3803,3 +3803,40 @@ completa — é a mais consistente com o comportamento observado (RPC retorna `f
 erro), mas não foi possível reproduzir com a paciente real (não se tem acesso ao aparelho dela).
 Se o mesmo erro voltar a acontecer mesmo com a correção acima (ou seja, com sessão válida
 confirmada), o próximo passo é logar o corpo do erro em vez de só mostrar mensagem genérica.
+
+## 50. Biblioteca de ilustrações diversas — lote inicial + 4 exercícios novos (14/set)
+
+✅ Primeira entrega do item "Depois" do ROADMAP (biblioteca visual inclusiva de modelos e
+referências) — achado isolado do benchmark §30, nunca antes iniciado no código.
+
+- **Biblioteca de referência** `assets/checkin-references/diversidade/` — 16 PNGs novos: 4
+  representações (`feminino-negra`, `feminino-leste-asiatico`, `masculino-negro`,
+  `masculino-leste-asiatico`) × 4 ângulos (`frente`/`costas`/`perfil`/`perfil-direito`).
+  Diferença do par original (`feminino`/`masculino` em `assets/checkin-references/`, sem
+  subpasta): o par original só tem 3 imagens e espelha `perfil` pra virar `direito` em runtime
+  (`silhuetas-checkin.tsx:37,54`, `transform: scaleX(-1)`); aqui `perfil-direito` já é arquivo
+  próprio, gerado separado — **não decidido** se isso é intencional (pose não simétrica em
+  alguma dessas poses) ou só como o lote saiu; qualquer um dos dois formatos funciona se/quando
+  isso for integrado.
+- **Catálogo de exercícios ganhou 4 ilustrações novas**, primeiro lote a variar representação em
+  vez do modelo único padrão: `agachamento-goblet.png`, `remada-curvada-com-barra.png`,
+  `rosca-direta-barra-ez.png`, `supino-inclinado-com-halteres.png` — aliases novos em
+  [`exerciseIllustrations.ts`](src/lib/exerciseIllustrations.ts). Catálogo espelhado (o arquivo
+  já documenta essa duplicação intencional, ver §40) atualizado nas duas Edge Functions que
+  precisam saber "já existe ilustração estática, IA não gera de novo":
+  [`generate-ai-plan/index.ts`](supabase/functions/generate-ai-plan/index.ts) e
+  [`generate-exercise-illustration/index.ts`](supabase/functions/generate-exercise-illustration/index.ts).
+- **Regra adotada** (registrada só no ROADMAP por ora, não no código): exercício novo deve
+  alternar representação de forma equilibrada, pra experiência não ficar predominantemente
+  branca — hoje é escolha manual de quem adiciona a ilustração, nada força isso.
+- `npx tsc --noEmit` limpo.
+
+**Pendências:**
+- **`assets/checkin-references/diversidade/` não está integrado ao app** — `silhuetas-checkin.tsx`
+  continua lendo só `feminino`/`masculino` da pasta original; falta decidir e escrever a regra de
+  curadoria/rotação (qual representação aparece pra quem, em qual tela) antes de ligar essa
+  biblioteca em qualquer fluxo real, incluindo o guia de câmera do check-in (§39).
+- Faltam mais representações além dessas duas novas (a biblioteca completa do ROADMAP prevê
+  variação maior de traços/cabelo, não só duas etnias a mais).
+- Decidir o formato de `perfil-direito` (arquivo próprio vs. espelhamento em runtime) antes de
+  gerar lotes futuros, pra não ter os dois padrões coexistindo sem motivo.
