@@ -3951,3 +3951,6 @@ vira `null` como as do começo. Verificado de novo na mesma rota de depuração 
 (`debugcampo.tsx`, removida depois, `_layout.tsx` sem diff): Setembro 2026 (27-30 sob
 D/S/T/Q, correto) e Outubro 2026 (dia 1 sob Q — outubro começa numa quinta, correto) alinhados
 certos nos dois extremos do mês. `npx tsc --noEmit` limpo.
+- **Deploy publicado nos dois hosts (18/set)**: mesmo pipeline de sempre. Bundle
+  `entry-ebccf23c27645f57a4edc482dd676234.js`, conferido por `curl` (body, não só status) nos
+  dois: `app-treino.expo.app` e `app.vytraoficial.com.br`, hash igual, ambos 200.
