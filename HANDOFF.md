@@ -3939,3 +3939,15 @@ uma data pra agendar algo (só validação por regex no `salvar()`, já existent
 - **Deploy publicado nos dois hosts (18/set)**: mesmo pipeline de sempre. Bundle
   `entry-8ff8a0e746f28c1ce4e012798701d700.js`, conferido por `curl` (body, não só status) nos
   dois: `app-treino.expo.app` e `app.vytraoficial.com.br`, hash igual, ambos 200.
+
+⚠️→✅ **Bug real achado pelo Guilherme, corrigido na mesma sessão**: a última semana do mês (a
+única que quase sempre tem menos de 7 dias) não ganhava célula vazia no fim, só a primeira
+semana ganhava no começo (`Array(primeiroDiaSemana).fill(null)`). Com `justifyContent:
+'space-between'` numa linha de menos de 7 itens, o RN Web espalha os poucos dias que sobraram
+pela largura inteira da linha em vez de alinhar embaixo da coluna certa do dia da semana —
+parecia "pular dia" (ex.: dia 27 aparecendo sob a coluna errada). Corrigido preenchendo o fim do
+grid também: `totalCelulas = Math.ceil((primeiroDiaSemana + totalDias) / 7) * 7`, célula extra
+vira `null` como as do começo. Verificado de novo na mesma rota de depuração temporária
+(`debugcampo.tsx`, removida depois, `_layout.tsx` sem diff): Setembro 2026 (27-30 sob
+D/S/T/Q, correto) e Outubro 2026 (dia 1 sob Q — outubro começa numa quinta, correto) alinhados
+certos nos dois extremos do mês. `npx tsc --noEmit` limpo.

@@ -61,9 +61,14 @@ function CalendarioMes({
 
   const primeiroDiaSemana = new Date(referencia.getFullYear(), referencia.getMonth(), 1).getDay();
   const totalDias = new Date(referencia.getFullYear(), referencia.getMonth() + 1, 0).getDate();
+  // Preenche o fim do grid com células vazias também (não só o começo) — sem isso a última
+  // semana, com menos de 7 dias, ficava esticada pelo `space-between` e desalinhada da coluna
+  // certa do dia da semana (parecia "pular dia").
+  const totalCelulas = Math.ceil((primeiroDiaSemana + totalDias) / 7) * 7;
   const celulas: (number | null)[] = [
     ...Array(primeiroDiaSemana).fill(null),
     ...Array.from({ length: totalDias }, (_, i) => i + 1),
+    ...Array(totalCelulas - primeiroDiaSemana - totalDias).fill(null),
   ];
 
   function trocarMes(delta: number) {
