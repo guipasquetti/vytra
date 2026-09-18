@@ -3992,3 +3992,15 @@ solicitações no projeto (ex.: selo de verificado some até aprovação, §45).
   vinculados (mesma regra de sempre); o texto/layout segue padrões já usados e testados em
   outras telas do mesmo arquivo (Caption `Palette.orange`, Button `ghost`), não uma
   interação nova sem precedente.
+- **Deploy publicado nos dois hosts (18/set)**: mesmo pipeline de sempre, com um achado novo —
+  `app-treino.expo.app` ficou ~5min servindo o bundle anterior mesmo depois de "Promoted to
+  production" confirmado pela CLI (a URL própria do deployment, tipo
+  `app-treino--xxxx.expo.app`, já servia o bundle certo na hora; só o alias de produção atrasou).
+  `curl -I` mostrava `age` crescendo e `last-modified` do deploy anterior — cache de borda
+  (Cloudflare) não purgado na hora da promoção, não é o classificador de auto mode (§8/§26/§32/
+  §51, causa diferente). Resolveu sozinho depois de ~5min sem re-deploy nenhum. Vale registrar:
+  se `curl` no host `.expo.app` mostrar hash desatualizado logo após `eas deploy --prod`,
+  conferir a URL própria do deployment primeiro (ela é imediata) antes de assumir que o deploy
+  falhou — só esperar a propagação do alias. Bundle final `entry-2e3f8a6a5e48aea2b6a7308f04b9f99c.js`,
+  conferido por `curl` (body, não só status) nos dois: `app-treino.expo.app` e
+  `app.vytraoficial.com.br`, hash igual, ambos 200.
