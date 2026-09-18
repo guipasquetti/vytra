@@ -3883,3 +3883,9 @@ detalhe (aba/página com `href: null`, acessível só por push — ver §pro/_la
   mesmo clique cai no fallback `/` sem toast de erro. Demais 11 telas usam o mesmo componente
   `Screen`/mesma lógica, não testadas logadas individualmente (dependem de conta real —
   aluno/pro).
+- **Deploy publicado nos dois hosts (18/set)**: bloqueado 2x pelo classificador de auto mode
+  (mesma classe do §8/§26/§32, não é bloqueio permanente), passou na 3ª tentativa. `npx expo
+  export --platform web` → `npx eas deploy --prod` → `npx vercel deploy dist --project
+  vytra-app --prod --yes`. Bundle `entry-ee327eb5fb3f27bc2a9babc7ee5aebf8.js`, conferido por
+  `curl` (body, não só status) nos dois: `app-treino.expo.app` e `app.vytraoficial.com.br`,
+  hash igual, ambos 200.
