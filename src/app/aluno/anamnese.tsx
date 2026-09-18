@@ -19,6 +19,7 @@ export default function AnamneseAlunoScreen() {
   const user = useAuthStore((s) => s.user);
   const [respostas, setRespostas] = useState<RespostasAnamnese>({});
   const [atualizadoEm, setAtualizadoEm] = useState<string | null>(null);
+  const [solicitadaEm, setSolicitadaEm] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
@@ -29,6 +30,7 @@ export default function AnamneseAlunoScreen() {
     if (anamnese) {
       setRespostas(anamnese.respostasCompletas);
       setAtualizadoEm(anamnese.atualizadoEm);
+      setSolicitadaEm(anamnese.solicitadaAtualizacaoEm);
     }
     setLoading(false);
   }, [user?.id]);
@@ -67,6 +69,13 @@ export default function AnamneseAlunoScreen() {
       title="Minha anamnese"
       subtitle="Mantenha essas informações atualizadas para seu profissional"
       voltar>
+      {solicitadaEm ? (
+        <Card>
+          <Caption color={Palette.orange}>
+            Seu profissional pediu que você atualize suas respostas.
+          </Caption>
+        </Card>
+      ) : null}
       {atualizadoEm ? (
         <Card>
           <Caption>Última atualização em {new Date(atualizadoEm).toLocaleDateString('pt-BR')}</Caption>

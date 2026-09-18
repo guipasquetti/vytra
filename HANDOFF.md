@@ -3954,3 +3954,41 @@ certos nos dois extremos do mês. `npx tsc --noEmit` limpo.
 - **Deploy publicado nos dois hosts (18/set)**: mesmo pipeline de sempre. Bundle
   `entry-ebccf23c27645f57a4edc482dd676234.js`, conferido por `curl` (body, não só status) nos
   dois: `app-treino.expo.app` e `app.vytraoficial.com.br`, hash igual, ambos 200.
+
+## 53. Profissional pode pedir pro paciente reenviar a anamnese (18/set)
+
+✅ Pedido do Guilherme: não existia jeito do profissional sinalizar "atualiza sua anamnese" pro
+paciente — só o próprio paciente decidia reeditar (`aluno/anamnese.tsx`, já existente desde
+antes, acessível via Perfil → "Ver/editar minha anamnese"). Sem chat/notificação no app ainda
+(gap conhecido, §30), o pedido fica visível de forma passiva — mesmo padrão de outras
+solicitações no projeto (ex.: selo de verificado some até aprovação, §45).
+
+- **Migração** [`20260918_solicitar_atualizacao_anamnese.sql`](supabase/migrations/20260918_solicitar_atualizacao_anamnese.sql),
+  aplicada em produção: `anamnese.solicitada_atualizacao_em` (timestamptz, nullable). Sem RLS
+  nova — `anamnese_update_professional` (baseline, `is_professional_of(client_id)`, sem
+  `with_check` restritivo) já libera UPDATE de qualquer coluna pro profissional vinculado,
+  conferido direto via `pg_policy` antes de assumir isso. `submeter_anamnese_autenticado`
+  (RPC `security definer` que grava a anamnese pelo lado do paciente) precisou de
+  `create or replace` pra zerar essa coluna no reenvio — senão o aviso ficaria preso mesmo
+  depois do paciente responder. `get_advisors(security)` depois: nenhum achado novo, os já
+  conhecidos continuam os mesmos (RPCs anon-chamáveis por design, sem mudança de grant).
+  `database.types.ts` regenerado via `generate_typescript_types`.
+- **Serviço** [`anamneseService.ts`](src/services/anamneseService.ts): `obterAnamnese` passa a
+  retornar `solicitadaAtualizacaoEm`; `solicitarAtualizacaoAnamnese(clientId)`, novo — update
+  direto na tabela, sem RPC (a RLS já libera).
+- **UI profissional** [`pro/aluno/[id]/anamnese.tsx`](src/app/pro/aluno/%5Bid%5D/anamnese.tsx):
+  botão "Pedir pro paciente atualizar" (só quando já existe anamnese respondida — sem sentido
+  pedir atualização de algo que nunca foi preenchido, esse caso já tem o aviso "Paciente ainda
+  não respondeu"); depois de pedido, vira aviso "Atualização pedida em DD/MM — aguardando o
+  paciente responder" no lugar do botão, mesmo padrão de "não pede de novo" já usado em
+  outras telas do projeto (§48, declaração de responsabilidade).
+- **UI paciente**: banner laranja em [`aluno/anamnese.tsx`](src/app/aluno/anamnese.tsx)
+  ("Seu profissional pediu que você atualize suas respostas") quando a flag está setada, e o
+  mesmo aviso substitui o texto neutro no card de Anamnese do
+  [`perfil-screen.tsx`](src/components/perfil-screen.tsx) — as duas entradas que já levavam pro
+  reenvio (Perfil e a própria tela) agora avisam o motivo. Salvar (mesma RPC de sempre) limpa a
+  flag sozinho.
+- `npx tsc --noEmit` limpo. **Não testado logado** — depende de conta real profissional+aluno
+  vinculados (mesma regra de sempre); o texto/layout segue padrões já usados e testados em
+  outras telas do mesmo arquivo (Caption `Palette.orange`, Button `ghost`), não uma
+  interação nova sem precedente.

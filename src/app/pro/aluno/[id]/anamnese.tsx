@@ -5,7 +5,11 @@ import { AlunoTabs } from '@/components/aluno-tabs';
 import { AnamneseCampos } from '@/components/onboarding-anamnese';
 import { Button, Caption, Card, Loading, Screen } from '@/components/ui';
 import type { RespostasAnamnese } from '@/models/anamnese';
-import { obterAnamnese, salvarAnamneseComoProfissional } from '@/services/anamneseService';
+import {
+  obterAnamnese,
+  salvarAnamneseComoProfissional,
+  solicitarAtualizacaoAnamnese,
+} from '@/services/anamneseService';
 import { Palette } from '@/theme';
 
 /**
@@ -18,8 +22,10 @@ export default function AnamnesePacienteScreen() {
   const router = useRouter();
   const [respostas, setRespostas] = useState<RespostasAnamnese>({});
   const [atualizadoEm, setAtualizadoEm] = useState<string | null>(null);
+  const [solicitadaEm, setSolicitadaEm] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [salvando, setSalvando] = useState(false);
+  const [solicitando, setSolicitando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
 
   const carregar = useCallback(async () => {
@@ -28,9 +34,23 @@ export default function AnamnesePacienteScreen() {
     if (anamnese) {
       setRespostas(anamnese.respostasCompletas);
       setAtualizadoEm(anamnese.atualizadoEm);
+      setSolicitadaEm(anamnese.solicitadaAtualizacaoEm);
     }
     setLoading(false);
   }, [clientId]);
+
+  async function solicitarAtualizacao() {
+    if (!clientId) return;
+    setSolicitando(true);
+    try {
+      await solicitarAtualizacaoAnamnese(clientId);
+      setSolicitadaEm(new Date().toISOString());
+    } catch (e) {
+      setErro(e instanceof Error ? e.message : 'Não consegui pedir a atualização.');
+    } finally {
+      setSolicitando(false);
+    }
+  }
 
   useFocusEffect(
     useCallback(() => {
@@ -64,6 +84,19 @@ export default function AnamnesePacienteScreen() {
       {atualizadoEm ? (
         <Card>
           <Caption>Última atualização em {new Date(atualizadoEm).toLocaleDateString('pt-BR')}</Caption>
+          {solicitadaEm ? (
+            <Caption color={Palette.orange}>
+              Atualização pedida em {new Date(solicitadaEm).toLocaleDateString('pt-BR')} —
+              aguardando o paciente responder.
+            </Caption>
+          ) : (
+            <Button
+              label="Pedir pro paciente atualizar"
+              variant="ghost"
+              onPress={solicitarAtualizacao}
+              loading={solicitando}
+            />
+          )}
         </Card>
       ) : (
         <Card>

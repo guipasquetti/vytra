@@ -70,6 +70,7 @@ export type Database = {
           observacoes: string
           respostas_completas: Json | null
           restricoes_alimentares: string
+          solicitada_atualizacao_em: string | null
           updated_at: string
         }
         Insert: {
@@ -85,6 +86,7 @@ export type Database = {
           observacoes?: string
           respostas_completas?: Json | null
           restricoes_alimentares?: string
+          solicitada_atualizacao_em?: string | null
           updated_at?: string
         }
         Update: {
@@ -100,6 +102,7 @@ export type Database = {
           observacoes?: string
           respostas_completas?: Json | null
           restricoes_alimentares?: string
+          solicitada_atualizacao_em?: string | null
           updated_at?: string
         }
         Relationships: [

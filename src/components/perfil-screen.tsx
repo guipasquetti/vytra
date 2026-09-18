@@ -4,6 +4,7 @@ import { Linking, StyleSheet, View } from 'react-native';
 
 import { CampoData } from '@/components/campo-data';
 import { Body, Button, Caption, Card, Field, Pill, Screen, SectionTitle, SeloVerificado } from '@/components/ui';
+import { obterAnamnese } from '@/services/anamneseService';
 import { formatarDataHora } from '@/models/domain';
 import { listarAlunos, listarMeusProfissionais } from '@/services/professionalService';
 import { atualizarPerfil, signOut } from '@/services/authService';
@@ -48,6 +49,7 @@ export function PerfilScreen() {
   const [proximaConsulta, setProximaConsulta] = useState<Teleconsulta | null>(null);
   const [especialidade, setEspecialidade] = useState<string | null>(null);
   const [verificacao, setVerificacao] = useState<VerificacaoProfissional | null>(null);
+  const [anamneseSolicitada, setAnamneseSolicitada] = useState(false);
 
   const [editando, setEditando] = useState(false);
   const [nome, setNome] = useState('');
@@ -90,6 +92,7 @@ export function PerfilScreen() {
         ),
       );
       proximaTeleconsulta(user.id).then(setProximaConsulta);
+      obterAnamnese(user.id).then((a) => setAnamneseSolicitada(!!a?.solicitadaAtualizacaoEm));
     }
   }, [user?.id, isProfessional]);
 
@@ -235,7 +238,11 @@ export function PerfilScreen() {
       {!isProfessional ? (
         <Card>
           <SectionTitle>Anamnese</SectionTitle>
-          <Caption>Mantenha suas informações de saúde e hábitos atualizadas.</Caption>
+          {anamneseSolicitada ? (
+            <Caption color={Palette.orange}>Seu profissional pediu que você atualize suas respostas.</Caption>
+          ) : (
+            <Caption>Mantenha suas informações de saúde e hábitos atualizadas.</Caption>
+          )}
           <Button label="Ver/editar minha anamnese" variant="ghost" onPress={() => router.push('/aluno/anamnese')} />
         </Card>
       ) : null}
