@@ -3795,8 +3795,12 @@ arriscava perder as 56 respostas inteiras.
   limpo (precisou `npm install`, `node_modules` não existia neste clone).
 
 **Não testado logado com paciente real** (mesma regra de sempre, nunca senha de conta nenhuma
-digitada por agente). Commitado (`4a74170`) e **empurrado pro `origin/main`, mas ainda sem
-deploy** (`eas deploy`/`vercel deploy`) — pendente, ver próxima ação.
+digitada por agente). Commitado (`4a74170`).
+
+✅ **Deploy publicado nos dois hosts (18/set, junto com o §50)**: `npx expo export --platform web`
+→ `npx eas deploy --prod` → `npx vercel deploy dist --project vytra-app --prod --yes`. Bundle
+`entry-bf25a8168b585cd7a0dd1de62b5a50ba.js`, conferido por `curl` (body, não só status) nos dois:
+`app-treino.expo.app` e `app.vytraoficial.com.br`, hash igual, ambos 200.
 
 ⚠️ **Hipótese, não causa confirmada**: não é certeza que a sessão expirada é a explicação
 completa — é a mais consistente com o comportamento observado (RPC retorna `false`, não lança
@@ -3840,3 +3844,8 @@ referências) — achado isolado do benchmark §30, nunca antes iniciado no cód
   variação maior de traços/cabelo, não só duas etnias a mais).
 - Decidir o formato de `perfil-direito` (arquivo próprio vs. espelhamento em runtime) antes de
   gerar lotes futuros, pra não ter os dois padrões coexistindo sem motivo.
+
+✅ **Deploy publicado nos dois hosts (18/set)**: mesmo pipeline de sempre, junto com o §49 (fix de
+anamnese, que estava commitado e empurrado mas ainda sem deploy). Bundle
+`entry-bf25a8168b585cd7a0dd1de62b5a50ba.js`, conferido por `curl` (body, não só status) nos dois:
+`app-treino.expo.app` e `app.vytraoficial.com.br`, hash igual, ambos 200.
