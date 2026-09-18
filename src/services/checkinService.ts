@@ -170,6 +170,35 @@ export async function obterComparacaoFotos(subscriptionId: string): Promise<Comp
   return resultado;
 }
 
+export type FotoDoCheckin = { angulo: 'frente' | 'esquerdo' | 'direito' | 'costas'; label: string; url: string };
+export type GaleriaCheckin = { checkinId: string; data: string; fotos: FotoDoCheckin[] };
+
+/**
+ * Todo check-in que tem pelo menos uma foto, mais recente primeiro — pedido do Guilherme
+ * (18/set): o profissional precisa ver os arquivos enviados a qualquer momento, não só quando
+ * `obterComparacaoFotos` tem os 2 check-ins que a comparação exige. As duas funções coexistem
+ * de propósito: essa aqui é a lista completa, a outra continua sendo o "antes x depois" rápido.
+ */
+export async function listarGaleriaCheckins(subscriptionId: string): Promise<GaleriaCheckin[]> {
+  const checkins = await listarCheckinsDaAssinatura(subscriptionId); // mais recente primeiro
+  const comFoto = checkins.filter(
+    (c) => c.foto_frente_path || c.foto_perfil_esquerdo_path || c.foto_perfil_direito_path || c.foto_costas_path,
+  );
+
+  const resultado: GaleriaCheckin[] = [];
+  for (const c of comFoto) {
+    const fotos: FotoDoCheckin[] = [];
+    for (const a of ANGULOS) {
+      const caminho = c[a.chave];
+      if (!caminho) continue;
+      const url = await obterUrlFotoCheckin(caminho);
+      if (url) fotos.push({ angulo: a.angulo, label: a.label, url });
+    }
+    if (fotos.length) resultado.push({ checkinId: c.id, data: c.created_at, fotos });
+  }
+  return resultado;
+}
+
 export type RegistroPeso = { data: string; peso: number };
 
 /**

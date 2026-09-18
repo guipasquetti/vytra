@@ -4004,3 +4004,34 @@ solicitações no projeto (ex.: selo de verificado some até aprovação, §45).
   falhou — só esperar a propagação do alias. Bundle final `entry-2e3f8a6a5e48aea2b6a7308f04b9f99c.js`,
   conferido por `curl` (body, não só status) nos dois: `app-treino.expo.app` e
   `app.vytraoficial.com.br`, hash igual, ambos 200.
+
+## 54. Profissional não via foto de check-in nenhuma sem 2+ envios (18/set)
+
+⚠️→✅ **Achado real do Guilherme testando com as contas de teste**: painel do profissional não
+mostrava foto nenhuma do check-in do aluno. Não era bug de deploy nem cache (conferido: bundle
+em produção já tinha "Foto de frente" e "Responda na ordem que quiser" desde 12/set, `curl` no
+JS servido confirmou string a string) — era comportamento por desenho:
+`obterComparacaoFotos` ([checkinService.ts:144](src/services/checkinService.ts:144)) só devolve
+algo com **pelo menos 2 check-ins com foto** (é "primeira x mais recente", 1 só não é
+comparação, comentário já avisava isso). Com só 1 check-in de teste enviado, a lista vinha
+vazia e a seção inteira sumia (`evolucao.fotos.length` no `resumo.tsx`) — não existia NENHUM
+outro lugar que mostrasse foto de um check-in isolado.
+
+**Pedido do Guilherme**: profissional tem que poder ver os arquivos enviados a qualquer
+momento, não só quando existe comparação.
+
+- **Nova função** [`listarGaleriaCheckins(subscriptionId)`](src/services/checkinService.ts) —
+  lista TODO check-in que tem pelo menos 1 foto, mais recente primeiro, sem mínimo de
+  quantidade (`GaleriaCheckin[]`, `checkinId`/`data`/`fotos[]`). Coexiste de propósito com
+  `obterComparacaoFotos`: essa é a lista completa, a outra continua sendo o atalho visual
+  "antes x depois" quando já dá pra comparar. Mesmo bucket/URL assinada de sempre
+  (`obterUrlFotoCheckin`), sem tabela nem RLS nova.
+- **UI** em [`pro/aluno/[id]/resumo.tsx`](src/app/pro/aluno/%5Bid%5D/resumo.tsx): nova seção
+  "Fotos enviadas" logo abaixo de "Fotos de progresso" (que ganhou a legenda "Primeira x mais
+  recente, com foto" pra deixar claro que é só o atalho) — um card por check-in, data +
+  miniaturas de cada ângulo enviado (`flexWrap`, funciona com 1 foto ou com as 4).
+- **Verificado no preview local** (rota de depuração temporária, removida depois,
+  `_layout.tsx` sem diff): layout testado com 1 foto e com 4 fotos, thumbnails quebram linha
+  certo nos dois casos. `npx tsc --noEmit` limpo.
+- **Não testado logado** — depende de check-in real com foto enviada por conta de teste
+  (aluno) e leitura pelo profissional vinculado.

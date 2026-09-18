@@ -24,9 +24,11 @@ import {
   historicoPeso,
   historicoPontuacao,
   listarCheckinsDoAluno,
+  listarGaleriaCheckins,
   obterComparacaoFotos,
   resumoAdesao,
   type ComparacaoAngulo,
+  type GaleriaCheckin,
 } from '@/services/checkinService';
 import { obterPainelGestao, type ResumoAluno } from '@/services/gestaoService';
 import { criarAtendimento, listarAtendimentosDoCliente, type Atendimento } from '@/services/leadsService';
@@ -49,6 +51,7 @@ export default function ResumoPacienteScreen() {
   const [paciente, setPaciente] = useState<ResumoAluno | null>(null);
   const [consultas, setConsultas] = useState<{ id: string; data_hora: string; status: string; observacoes: string | null }[]>([]);
   const [evolucao, setEvolucao] = useState<Evolucao | null>(null);
+  const [galeria, setGaleria] = useState<GaleriaCheckin[]>([]);
   const [prontuario, setProntuario] = useState<Atendimento[]>([]);
   const [anexos, setAnexos] = useState<Anexo[]>([]);
   const [notaTexto, setNotaTexto] = useState('');
@@ -71,12 +74,13 @@ export default function ResumoPacienteScreen() {
     );
 
     if (encontrado) {
-      const [checkins, workout, fotos, atendimentos, docs] = await Promise.all([
+      const [checkins, workout, fotos, atendimentos, docs, galeriaFotos] = await Promise.all([
         listarCheckinsDoAluno(clientId),
         getWorkoutData(clientId),
         obterComparacaoFotos(encontrado.subscriptionId),
         listarAtendimentosDoCliente(clientId),
         listarAnexosDaAssinatura(encontrado.subscriptionId),
+        listarGaleriaCheckins(encontrado.subscriptionId),
       ]);
       setEvolucao({
         pesos: historicoPeso(checkins),
@@ -87,6 +91,7 @@ export default function ResumoPacienteScreen() {
       });
       setProntuario(atendimentos);
       setAnexos(docs);
+      setGaleria(galeriaFotos);
     }
     setLoading(false);
   }, [clientId, user]);
@@ -214,6 +219,7 @@ export default function ResumoPacienteScreen() {
       {evolucao && evolucao.fotos.length ? (
         <Card>
           <SectionTitle>Fotos de progresso</SectionTitle>
+          <Caption color={Palette.textTertiary}>Primeira x mais recente, com foto</Caption>
           {evolucao.fotos.map((f) => (
             <View key={f.angulo} style={{ gap: Spacing.xs }}>
               <Caption>{f.label}</Caption>
@@ -224,6 +230,25 @@ export default function ResumoPacienteScreen() {
             </View>
           ))}
         </Card>
+      ) : null}
+
+      {galeria.length ? (
+        <>
+          <SectionTitle>Fotos enviadas</SectionTitle>
+          {galeria.map((g) => (
+            <Card key={g.checkinId}>
+              <Caption color={Palette.textTertiary}>{formatarDataHora(g.data)}</Caption>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm }}>
+                {g.fotos.map((f) => (
+                  <View key={f.angulo} style={{ gap: Spacing.xs }}>
+                    <Image source={{ uri: f.url }} style={{ width: 100, height: 130, borderRadius: 8 }} />
+                    <Caption>{f.label}</Caption>
+                  </View>
+                ))}
+              </View>
+            </Card>
+          ))}
+        </>
       ) : null}
 
       <SectionTitle>Consultas</SectionTitle>
