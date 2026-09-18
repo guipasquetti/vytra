@@ -63,7 +63,10 @@ export default function AnamneseAlunoScreen() {
   if (loading || !user) return <Loading />;
 
   return (
-    <Screen title="Minha anamnese" subtitle="Mantenha essas informações atualizadas para seu profissional">
+    <Screen
+      title="Minha anamnese"
+      subtitle="Mantenha essas informações atualizadas para seu profissional"
+      voltar>
       {atualizadoEm ? (
         <Card>
           <Caption>Última atualização em {new Date(atualizadoEm).toLocaleDateString('pt-BR')}</Caption>

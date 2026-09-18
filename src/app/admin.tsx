@@ -40,7 +40,7 @@ export default function AdminScreen() {
 
   if (!profile.is_admin) {
     return (
-      <Screen title="Sem acesso">
+      <Screen title="Sem acesso" voltar>
         <EmptyState text="Essa área é restrita." />
       </Screen>
     );
@@ -49,7 +49,7 @@ export default function AdminScreen() {
   if (solicitacoes === null) return <Loading />;
 
   return (
-    <Screen title="Verificações" subtitle="Profissionais aguardando aprovação">
+    <Screen title="Verificações" subtitle="Profissionais aguardando aprovação" voltar>
       {solicitacoes.length ? (
         solicitacoes.map((s) => (
           <SolicitacaoCard key={s.id} solicitacao={s} adminId={profile.id} onMudou={carregar} />

@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 import { useEffect, useRef, type ReactNode } from 'react';
 import {
   ActivityIndicator,
@@ -25,15 +26,34 @@ export function Screen({
   right,
   children,
   scroll = true,
+  voltar = false,
 }: {
   title?: string;
   subtitle?: string;
   right?: ReactNode;
   children: ReactNode;
   scroll?: boolean;
+  /** Mostra seta de voltar antes do título — só pra telas abertas por push (nunca pra abas
+   * raiz, que não têm "anterior"). Usa `router.back()` quando há histórico; sem histórico
+   * (URL aberta direto/atualizada no navegador — comum no web), cai em "/", que decide sozinha
+   * pra onde mandar (login ou a área certa por papel, ver `index.tsx`) — nunca deixa o toast de
+   * erro do react-navigation ("action GO_BACK was not handled") aparecer. */
+  voltar?: boolean;
 }) {
+  const router = useRouter();
+
   const header = title ? (
     <View style={styles.header}>
+      {voltar ? (
+        <Pressable
+          onPress={() => (router.canGoBack() ? router.back() : router.replace('/'))}
+          hitSlop={12}
+          style={styles.voltarBotao}
+          accessibilityRole="button"
+          accessibilityLabel="Voltar">
+          <Ionicons name="chevron-back" size={24} color={Palette.text} />
+        </Pressable>
+      ) : null}
       <View style={styles.headerText}>
         <Text style={styles.title}>{title}</Text>
         {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
@@ -466,6 +486,10 @@ const styles = StyleSheet.create({
   headerText: {
     flex: 1,
     gap: 2,
+  },
+  voltarBotao: {
+    paddingTop: 2,
+    paddingRight: Spacing.sm,
   },
   title: {
     color: Palette.text,

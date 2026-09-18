@@ -130,14 +130,14 @@ export default function AnexosAlunoScreen() {
 
   if (!profissionais.length) {
     return (
-      <Screen title="Meus documentos" subtitle="Exames e laudos">
+      <Screen title="Meus documentos" subtitle="Exames e laudos" voltar>
         <EmptyState text="Você precisa ter um acompanhamento ativo pra enviar documentos." />
       </Screen>
     );
   }
 
   return (
-    <Screen title="Meus documentos" subtitle="Exames e laudos">
+    <Screen title="Meus documentos" subtitle="Exames e laudos" voltar>
       {profissionais.length > 1 ? (
         <Card>
           <Caption color={Palette.textTertiary}>Enviar para</Caption>

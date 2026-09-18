@@ -100,7 +100,7 @@ export default function CadastroProfissionalScreen() {
 
   if (concluido) {
     return (
-      <Screen title="Cadastro enviado">
+      <Screen title="Cadastro enviado" voltar>
         <Card>
           <SectionTitle>Falta pouco</SectionTitle>
           <Body>
@@ -117,7 +117,10 @@ export default function CadastroProfissionalScreen() {
   }
 
   return (
-    <Screen title="Cadastro de profissional" subtitle="Só pra quem tem registro válido no conselho">
+    <Screen
+      title="Cadastro de profissional"
+      subtitle="Só pra quem tem registro válido no conselho"
+      voltar>
       <Card>
         <Caption>
           Pra manter a confiança de quem usa o app, todo profissional passa por verificação

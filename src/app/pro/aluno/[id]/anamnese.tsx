@@ -59,7 +59,7 @@ export default function AnamnesePacienteScreen() {
   if (loading) return <Loading />;
 
   return (
-    <Screen title="Anamnese" subtitle="Revise e corrija as respostas do paciente">
+    <Screen title="Anamnese" subtitle="Revise e corrija as respostas do paciente" voltar>
       <AlunoTabs clientId={clientId!} ativo="anamnese" />
       {atualizadoEm ? (
         <Card>

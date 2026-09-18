@@ -214,7 +214,7 @@ export default function EditorDietaScreen() {
   const totalDia = somaMacros(plano.refeicoes.flatMap((r) => itensReais(r.itens)));
 
   return (
-    <Screen title={nomeAluno} subtitle="Plano alimentar">
+    <Screen title={nomeAluno} subtitle="Plano alimentar" voltar>
       <AlunoTabs clientId={clientId!} ativo="dieta" />
 
       <Card>

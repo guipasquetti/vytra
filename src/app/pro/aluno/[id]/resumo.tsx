@@ -120,7 +120,7 @@ export default function ResumoPacienteScreen() {
   if (!paciente) return <EmptyState text="Paciente não encontrado na sua carteira." />;
 
   return (
-    <Screen title={paciente.nome} subtitle="Resumo do acompanhamento">
+    <Screen title={paciente.nome} subtitle="Resumo do acompanhamento" voltar>
       <AlunoTabs clientId={clientId!} ativo="resumo" />
 
       <Card>

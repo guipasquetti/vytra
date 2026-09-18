@@ -97,7 +97,7 @@ export default function CadastroEditarScreen() {
 
   if (concluido) {
     return (
-      <Screen title="Alteração enviada">
+      <Screen title="Alteração enviada" voltar>
         <Card>
           <SectionTitle>Em análise</SectionTitle>
           <Body>Seu cadastro voltou pra fila de verificação.</Body>
@@ -112,7 +112,7 @@ export default function CadastroEditarScreen() {
   }
 
   return (
-    <Screen title="Alterar cadastro" subtitle="Registro no conselho e bio">
+    <Screen title="Alterar cadastro" subtitle="Registro no conselho e bio" voltar>
       <Card>
         <Caption>
           Enviar essa alteração reabre a verificação: o selo de verificado some até um admin

@@ -78,7 +78,7 @@ export default function ConviteScreen() {
 
   if (!params.leadId) {
     return (
-      <Screen title="Convidar aluno">
+      <Screen title="Convidar aluno" voltar>
         <EmptyState text="O convite parte de um lead — cria o lead e registra a call de sensibilização antes de gerar o link." />
         <Button label="Ir para Leads" onPress={() => router.push('/pro/leads')} />
       </Screen>
@@ -87,7 +87,7 @@ export default function ConviteScreen() {
 
   if (link) {
     return (
-      <Screen title={reenviando ? 'Convite reenviado' : 'Convite gerado'}>
+      <Screen title={reenviando ? 'Convite reenviado' : 'Convite gerado'} voltar>
         <Card>
           <SectionTitle>Link do convite</SectionTitle>
           <Body>{nome}</Body>
@@ -113,7 +113,8 @@ export default function ConviteScreen() {
   return (
     <Screen
       title={reenviando ? 'Reenviar convite' : 'Convidar aluno'}
-      subtitle={reenviando ? 'Gera um link novo pra este lead — o antigo para de funcionar' : 'Gera o link de acesso pra este lead'}>
+      subtitle={reenviando ? 'Gera um link novo pra este lead — o antigo para de funcionar' : 'Gera o link de acesso pra este lead'}
+      voltar>
       <Card>
         <Field
           label="Nome"

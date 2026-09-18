@@ -47,7 +47,7 @@ export default function PlanosScreen() {
   if (loading || !user) return <Loading />;
 
   return (
-    <Screen title="Serviços" subtitle="O que você oferece e vincula aos pacientes">
+    <Screen title="Serviços" subtitle="O que você oferece e vincula aos pacientes" voltar>
       {planos.length ? (
         planos.map((plano) => <PlanoCard key={plano.id} plano={plano} onMudou={carregar} />)
       ) : (

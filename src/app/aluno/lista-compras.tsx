@@ -42,14 +42,14 @@ export default function ListaComprasScreen() {
 
   if (!plano || !plano.publicado || !plano.refeicoes.length) {
     return (
-      <Screen title="Lista de compras">
+      <Screen title="Lista de compras" voltar>
         <EmptyState text="Seu nutricionista está montando seu plano — fica pronto em até 2 dias." />
       </Screen>
     );
   }
 
   return (
-    <Screen title="Lista de compras" subtitle={plano.nutricionista || undefined}>
+    <Screen title="Lista de compras" subtitle={plano.nutricionista || undefined} voltar>
       <ListaComprasSection userId={user.id} refeicoes={plano.refeicoes} categorias={categorias} />
     </Screen>
   );

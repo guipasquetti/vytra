@@ -177,7 +177,7 @@ export default function EditorPlanoScreen() {
   const removidos = idsRemovidos(original, plano.dias);
 
   return (
-    <Screen title={nomeAluno} subtitle="Plano de treino">
+    <Screen title={nomeAluno} subtitle="Plano de treino" voltar>
       <AlunoTabs clientId={clientId!} ativo="treino" />
 
       <Card>

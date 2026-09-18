@@ -3849,3 +3849,37 @@ referências) — achado isolado do benchmark §30, nunca antes iniciado no cód
 anamnese, que estava commitado e empurrado mas ainda sem deploy). Bundle
 `entry-bf25a8168b585cd7a0dd1de62b5a50ba.js`, conferido por `curl` (body, não só status) nos dois:
 `app-treino.expo.app` e `app.vytraoficial.com.br`, hash igual, ambos 200.
+
+## 51. Botão de voltar nas telas de push (18/set)
+
+✅ Pedido do Guilherme: nenhuma tela do app tinha jeito de voltar pra anterior — achado ao
+grepar o repo inteiro por `router.back()`/ícone de seta, só existiam 2 usos (e nenhum dos dois
+era um botão visível de "voltar", só navegação automática pós-salvar em
+`aluno/anamnese.tsx`/`pro/aluno/[id]/anamnese.tsx`). Sem esse botão, quem entrava numa tela de
+detalhe (aba/página com `href: null`, acessível só por push — ver §pro/_layout.tsx e
+§aluno/_layout.tsx) dependia do gesto nativo do navegador/SO pra sair.
+
+- **`Screen`** ([`components/ui/index.tsx`](src/components/ui/index.tsx)), o wrapper compartilhado
+  de tela com título, ganhou prop `voltar?: boolean` — quando `true`, desenha um chevron
+  (`Ionicons chevron-back`) antes do título, chamando `router.canGoBack() ? router.back() :
+  router.replace('/')`. O fallback pra `/` (não pra uma rota fixa por tela) foi decisão
+  deliberada: `index.tsx` já sabe decidir sozinha pra onde mandar (login sem sessão, `/pro` ou
+  `/aluno` por papel) — cobre o caso comum no web de abrir a URL direto/dar refresh numa tela
+  de detalhe, sem histórico de navegação nenhum. Sem esse guard, `router.back()` sozinho
+  dispara o toast de erro do react-navigation ("action GO_BACK was not handled") — reproduzido
+  e confirmado no preview antes de adicionar o guard.
+- **Aplicado nas telas de push** (nunca em aba raiz — essas não têm "anterior"):
+  `aluno/anamnese.tsx`, `aluno/anexos.tsx`, `aluno/lista-compras.tsx`,
+  `cadastro-profissional.tsx`, `pro/aluno/[id]/index.tsx`, `pro/aluno/[id]/dieta.tsx`,
+  `pro/aluno/[id]/resumo.tsx`, `pro/aluno/[id]/anamnese.tsx`, `pro/cadastro-editar.tsx`,
+  `pro/convite.tsx`, `pro/planos.tsx`, `admin.tsx` — 13 arquivos no total (12 telas + o
+  componente `Screen`).
+- **Não mexido**: `redefinir-senha.tsx` e `convite/[token].tsx` ficaram de fora de propósito —
+  são fluxos abertos por link externo (e-mail/WhatsApp), sem tela anterior de verdade dentro do
+  app; `esqueci-senha.tsx` já tinha link de texto "Voltar pro login" antes desta sessão.
+- `npx tsc --noEmit` limpo. **Verificado no preview local** (`npx expo start --web`, sem
+  login): `cadastro-profissional` — clique na seta com histórico real (veio do link "Criar
+  conta" do login) volta pro login via `router.back()`; abrindo a URL direto (sem histórico) o
+  mesmo clique cai no fallback `/` sem toast de erro. Demais 11 telas usam o mesmo componente
+  `Screen`/mesma lógica, não testadas logadas individualmente (dependem de conta real —
+  aluno/pro).
