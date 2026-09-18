@@ -1,6 +1,6 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { Image, View } from 'react-native';
+import { View } from 'react-native';
 
 import { AlunoTabs } from '@/components/aluno-tabs';
 import {
@@ -11,6 +11,7 @@ import {
   Card,
   EmptyState,
   Field,
+  FotoAmpliavel,
   Loading,
   Pill,
   Screen,
@@ -224,8 +225,8 @@ export default function ResumoPacienteScreen() {
             <View key={f.angulo} style={{ gap: Spacing.xs }}>
               <Caption>{f.label}</Caption>
               <View style={{ flexDirection: 'row', gap: Spacing.sm }}>
-                {f.primeira ? <Image source={{ uri: f.primeira.url }} style={{ width: 100, height: 130, borderRadius: 8 }} /> : null}
-                {f.ultima ? <Image source={{ uri: f.ultima.url }} style={{ width: 100, height: 130, borderRadius: 8 }} /> : null}
+                {f.primeira ? <FotoAmpliavel uri={f.primeira.url} /> : null}
+                {f.ultima ? <FotoAmpliavel uri={f.ultima.url} /> : null}
               </View>
             </View>
           ))}
@@ -241,7 +242,7 @@ export default function ResumoPacienteScreen() {
               <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm }}>
                 {g.fotos.map((f) => (
                   <View key={f.angulo} style={{ gap: Spacing.xs }}>
-                    <Image source={{ uri: f.url }} style={{ width: 100, height: 130, borderRadius: 8 }} />
+                    <FotoAmpliavel uri={f.url} />
                     <Caption>{f.label}</Caption>
                   </View>
                 ))}

@@ -4039,3 +4039,27 @@ momento, não só quando existe comparação.
   desta vez. Bundle `entry-52f0bd2e2fe8014f73bc7261bfd7ab8a.js`, conferido por `curl` (body,
   não só status) nos dois: `app-treino.expo.app` e `app.vytraoficial.com.br`, hash igual, ambos
   200.
+
+## 55. Fotos de check-in ampliáveis (18/set)
+
+✅ Pedido do Guilherme, continuação do §54: as miniaturas novas (e as da comparação
+"antes x depois") não abriam — só apareciam pequenas, 100×130.
+
+- **Novo** `FotoAmpliavel` em [`components/ui/index.tsx`](src/components/ui/index.tsx): mostra
+  a miniatura, e ao tocar abre um `Modal` (`transparent`, fundo quase opaco) com a imagem em
+  tela cheia (`resizeMode="contain"`) e um X pra fechar — também fecha tocando fora da imagem
+  ou pelo botão físico/gesto de voltar (`onRequestClose`, tratado pelo próprio `Modal`).
+  **Decisão de implementação**: usei `Modal` do React Native, não um `View` com
+  `position: 'absolute'` (que foi minha primeira tentativa) — a miniatura vive dentro de cards
+  pequenos (linha de fotos), então um overlay absoluto ficaria contido na área desse card, não
+  na tela inteira; `Modal` é portal de verdade (inclusive no web, via `react-native-web`),
+  cobre o viewport todo não importa onde a miniatura está aninhada. Confirmado com
+  `getBoundingClientRect()` no preview: `position: fixed`, `0,0` até a borda do viewport.
+- **Aplicado** nas duas seções de fotos de
+  [`pro/aluno/[id]/resumo.tsx`](src/app/pro/aluno/%5Bid%5D/resumo.tsx) — "Fotos de progresso"
+  (comparação) e "Fotos enviadas" (§54, galeria completa) — trocando `<Image>` cru por
+  `<FotoAmpliavel>`, sem mudar mais nada no layout.
+- **Verificado no preview local** (rota de depuração temporária, removida depois, `_layout.tsx`
+  sem diff): abre em tela cheia, fecha pelo X e tocando fora, sem erro no console.
+  `npx tsc --noEmit` limpo.
+- **Não testado logado** — depende de foto real de check-in.

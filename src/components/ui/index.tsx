@@ -1,8 +1,10 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { useEffect, useRef, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import {
   ActivityIndicator,
+  Image,
+  Modal,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -421,7 +423,57 @@ export function Loading() {
   );
 }
 
+/**
+ * Miniatura de foto que abre em tela cheia ao tocar (18/set, pedido do Guilherme: fotos de
+ * check-in precisavam poder ser ampliadas). Cada instância cuida do próprio estado de
+ * aberto/fechado — quem usa não precisa gerenciar overlay nenhum.
+ */
+export function FotoAmpliavel({
+  uri,
+  width = 100,
+  height = 130,
+}: {
+  uri: string;
+  width?: number;
+  height?: number;
+}) {
+  const [aberta, setAberta] = useState(false);
+  return (
+    <>
+      <Pressable onPress={() => setAberta(true)}>
+        <Image source={{ uri }} style={{ width, height, borderRadius: Radius.sm }} />
+      </Pressable>
+      {/* `Modal`, não `View absolute` — a miniatura vive dentro de containers pequenos (linha de
+       * fotos de um card); um overlay absoluto ficaria preso na área desse container, não na
+       * tela inteira. `Modal` renderiza por cima de tudo (portal de verdade, inclusive no web). */}
+      <Modal visible={aberta} transparent animationType="fade" onRequestClose={() => setAberta(false)}>
+        <Pressable style={styles.lightboxFundo} onPress={() => setAberta(false)}>
+          <Image source={{ uri }} style={styles.lightboxImagem} resizeMode="contain" />
+          <Pressable style={styles.lightboxFechar} onPress={() => setAberta(false)} hitSlop={12}>
+            <Ionicons name="close" size={28} color={Palette.text} />
+          </Pressable>
+        </Pressable>
+      </Modal>
+    </>
+  );
+}
+
 const styles = StyleSheet.create({
+  lightboxFundo: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.92)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  lightboxImagem: {
+    width: '100%',
+    height: '100%',
+  },
+  lightboxFechar: {
+    position: 'absolute',
+    top: Spacing.xl,
+    right: Spacing.lg,
+  },
   progressoTrilha: {
     height: 8,
     borderRadius: Radius.pill,
