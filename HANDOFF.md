@@ -4035,3 +4035,7 @@ momento, não só quando existe comparação.
   certo nos dois casos. `npx tsc --noEmit` limpo.
 - **Não testado logado** — depende de check-in real com foto enviada por conta de teste
   (aluno) e leitura pelo profissional vinculado.
+- **Deploy publicado nos dois hosts (18/set)**: mesmo pipeline de sempre, sem o atraso de CDN
+  desta vez. Bundle `entry-52f0bd2e2fe8014f73bc7261bfd7ab8a.js`, conferido por `curl` (body,
+  não só status) nos dois: `app-treino.expo.app` e `app.vytraoficial.com.br`, hash igual, ambos
+  200.
