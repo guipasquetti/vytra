@@ -2,6 +2,7 @@ import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
+import { CampoData } from '@/components/campo-data';
 import { Body, Button, Caption, Card, EmptyState, Field, Loading, Screen, SectionTitle } from '@/components/ui';
 import { formatarData, formatarDataHora } from '@/models/domain';
 import {
@@ -323,7 +324,13 @@ function LeadForm({
       <Field label="Nome" value={nome} onChangeText={setNome} placeholder="Nome do lead" />
       <Field label="Telefone" value={telefone} onChangeText={setTelefone} placeholder="(xx) xxxxx-xxxx" />
       <Field label="E-mail" value={email} onChangeText={setEmail} placeholder="email@lead.com" />
-      <Field label="Retomar em (opcional)" value={dataRetomada} onChangeText={setDataRetomada} placeholder="AAAA-MM-DD" />
+      <CampoData
+        label="Retomar em (opcional)"
+        value={dataRetomada}
+        onChangeText={setDataRetomada}
+        comCalendario
+        dataMinima={new Date()}
+      />
       <Field label="Observações" value={observacoes} onChangeText={setObservacoes} multiline />
 
       {erro ? <Caption color={Palette.danger}>{erro}</Caption> : null}

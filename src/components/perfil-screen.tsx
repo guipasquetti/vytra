@@ -2,6 +2,7 @@ import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Linking, StyleSheet, View } from 'react-native';
 
+import { CampoData } from '@/components/campo-data';
 import { Body, Button, Caption, Card, Field, Pill, Screen, SectionTitle, SeloVerificado } from '@/components/ui';
 import { formatarDataHora } from '@/models/domain';
 import { listarAlunos, listarMeusProfissionais } from '@/services/professionalService';
@@ -166,11 +167,10 @@ export function PerfilScreen() {
             />
             {!isProfessional ? (
               <>
-                <Field
+                <CampoData
                   label="Data de nascimento"
                   value={dataNascimento}
                   onChangeText={setDataNascimento}
-                  placeholder="AAAA-MM-DD"
                 />
                 <Caption>Sexo</Caption>
                 <View style={styles.rowFields}>

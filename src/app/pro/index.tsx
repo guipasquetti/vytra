@@ -2,6 +2,7 @@ import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { Linking, Pressable, StyleSheet, View } from 'react-native';
 
+import { CampoData, CampoHora } from '@/components/campo-data';
 import { Body, Button, Caption, Card, EmptyState, Field, Loading, Pill, Screen, SectionTitle } from '@/components/ui';
 import { formatarDataHora } from '@/models/domain';
 import { obterPainelGestao, type PainelGestao, type ResumoAluno } from '@/services/gestaoService';
@@ -433,8 +434,8 @@ function NovaConsultaForm({
         ))}
       </View>
 
-      <Field label="Data" value={data} onChangeText={setData} placeholder="AAAA-MM-DD" />
-      <Field label="Hora" value={hora} onChangeText={setHora} placeholder="HH:MM" />
+      <CampoData label="Data" value={data} onChangeText={setData} comCalendario dataMinima={new Date()} />
+      <CampoHora label="Hora" value={hora} onChangeText={setHora} />
       <Field
         label="Link do Meet"
         value={link}

@@ -3889,3 +3889,50 @@ detalhe (aba/página com `href: null`, acessível só por push — ver §pro/_la
   vytra-app --prod --yes`. Bundle `entry-ee327eb5fb3f27bc2a9babc7ee5aebf8.js`, conferido por
   `curl` (body, não só status) nos dois: `app-treino.expo.app` e `app.vytraoficial.com.br`,
   hash igual, ambos 200.
+
+## 52. Máscara automática de data/hora + calendário pra agendamento (18/set)
+
+✅ Pedido do Guilherme: os 3 campos de data do app (nascimento no perfil, "retomar em" de lead,
+data da teleconsulta) e o campo de hora da teleconsulta eram texto livre — só um placeholder
+"AAAA-MM-DD"/"HH:MM" sem nenhuma ajuda ao digitar, e nenhum tinha calendário quando o campo era
+uma data pra agendar algo (só validação por regex no `salvar()`, já existente, não mexida).
+
+- **Novo** [`components/campo-data.tsx`](src/components/campo-data.tsx): `CampoData` e
+  `CampoHora`, fora de `ui/index.tsx` de propósito (mesmo padrão de componentes maiores e
+  específicos do projeto, ver `silhuetas-checkin.tsx`/`aluno-tabs.tsx` — `ui/index.tsx` fica só
+  com átomos pequenos).
+  - **Máscara automática**: só dígitos entram, `-`/`:` são inseridos sozinhos nas posições
+    certas (`20260925` digitado vira `2026-09-25`; `1930` vira `19:30`) — `maxLength` trava em
+    10/5 caracteres. Não substitui a validação de formato que já existia no `salvar()` de cada
+    tela (regex `^\d{4}-\d{2}-\d{2}$`/`^\d{2}:\d{2}$`), só torna quase impossível digitar errado
+    antes de chegar lá.
+  - **`comCalendario`** (opcional): mostra um botão de calendário ao lado do campo; abre um
+    calendário pequeno inline (grid do mês, seta pra trocar de mês, atalho "Hoje") logo abaixo
+    do campo — nunca modal/popover, pra não precisar lidar com posicionamento/z-index entre
+    plataformas. Seleção de dia usa só cor/borda (`roleColor`), sem preenchimento — mesmo
+    princípio de `Pill` em `ui/index.tsx` (§19: cor é o sinal, não decoração). Aceita
+    `dataMinima`/`dataMaxima` pra desabilitar dias fora do intervalo (dias passados ficam
+    acinzentados e não clicáveis quando é uma data futura).
+  - **Sem calendário pra data de nascimento** (decisão deliberada): navegar mês a mês até
+    décadas atrás num grid pequeno atrapalha mais que ajuda — esse campo só ganhou a máscara,
+    sem `comCalendario`.
+- **Aplicado**: `pro/index.tsx` (Nova teleconsulta — `Data` com `comCalendario` e
+  `dataMinima={new Date()}` porque não dá pra agendar no passado, `Hora` com `CampoHora`),
+  `pro/leads.tsx` ("Retomar em" — mesma lógica de `comCalendario`+`dataMinima`),
+  `perfil-screen.tsx` (data de nascimento — só máscara, sem calendário).
+- **Achado ao construir, corrigido antes de aplicar em qualquer tela**: o wrapper do campo
+  copiou `flex: 1` do `field` de `ui/index.tsx` sem perceber que ali ele só faz sentido em
+  layout lado a lado (`rowFields`, peso/altura). Empilhado numa `Card` normal, `flex: 1` fez o
+  calendário (conteúdo alto,~300px) disputar altura com os campos vizinhos e ser cortado
+  visualmente — só a primeira semana aparecia, o resto ficava por baixo dos campos seguintes
+  sem empurrá-los. Confirmado com uma rota de depuração temporária no root (`debugcampo.tsx`,
+  whitelisted por uma linha em `_layout.tsx`, mesmo padrão de sempre — removida depois, `git
+  status` confirmou `_layout.tsx` sem diff) antes e depois do fix; todos os dias do mês
+  apareciam na árvore de texto da página mesmo com o bug (conferido via DOM), confirmando que
+  era clipping visual, não erro de lógica do grid.
+- **Verificado no preview local** (`npx expo start --web`, rota de depuração, sem login):
+  máscara de data e hora digitando só números, calendário abrindo com dias antes de hoje
+  desabilitados/acinzentados (`dataMinima`), clique num dia preenche o campo e fecha o
+  calendário sozinho, sem erro no console. `npx tsc --noEmit` limpo.
+- **Não testado logado** — as 3 telas reais (agendar teleconsulta, retomar lead, editar perfil)
+  dependem de conta real (aluno/pro), mesma regra de sempre.
