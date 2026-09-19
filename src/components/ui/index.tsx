@@ -26,6 +26,7 @@ export function Screen({
   title,
   subtitle,
   right,
+  floating,
   children,
   scroll = true,
   voltar = false,
@@ -33,6 +34,8 @@ export function Screen({
   title?: string;
   subtitle?: string;
   right?: ReactNode;
+  /** Conteúdo ancorado no canto inferior da tela, fora da rolagem (ex.: autosave). */
+  floating?: ReactNode;
   children: ReactNode;
   scroll?: boolean;
   /** Mostra seta de voltar antes do título — só pra telas abertas por push (nunca pra abas
@@ -79,6 +82,7 @@ export function Screen({
           {children}
         </View>
       )}
+      {floating ? <View style={styles.floating}>{floating}</View> : null}
     </SafeAreaView>
   );
 }
@@ -526,6 +530,18 @@ const styles = StyleSheet.create({
     paddingBottom: Spacing.xxl * 2,
     gap: Spacing.lg,
   },
+  floating: {
+    position: 'absolute',
+    right: Spacing.lg,
+    bottom: Spacing.lg,
+    zIndex: 10,
+    backgroundColor: Palette.surfaceElevated,
+    borderRadius: Radius.pill,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: Spacing.xs,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Palette.border,
+  },
   header: {
     flexDirection: 'row',
     alignItems: 'flex-start',
@@ -644,10 +660,12 @@ const styles = StyleSheet.create({
   field: {
     gap: Spacing.xs,
     flex: 1,
+    minWidth: 0,
   },
   fieldLabel: {
     color: Palette.textSecondary,
     ...monoStyle(FontSize.caption, true),
+    flexShrink: 1,
   },
   input: {
     backgroundColor: Palette.surfaceElevated,

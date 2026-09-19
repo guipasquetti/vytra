@@ -151,7 +151,7 @@ export default function InicioScreen() {
       <Card>
         <View style={styles.statsRow}>
           {persistencia != null ? (
-            <Stat value={`${persistencia}%`} label="persistência" color={Palette.orange} />
+            <Stat value={`${persistencia}%`} label="persistência semanal" color={Palette.orange} />
           ) : (
             <Stat value={String(streak)} label={streak === 1 ? 'dia seguido' : 'dias seguidos'} color={Palette.orange} />
           )}
@@ -166,6 +166,11 @@ export default function InicioScreen() {
             color={Palette.purple}
           />
         </View>
+        {treinosSemana ? (
+          <Caption>
+            {Math.max(0, 7 - treinosSemana)} {Math.max(0, 7 - treinosSemana) === 1 ? 'dia de descanso planejado' : 'dias de descanso planejados'} nesta semana.
+          </Caption>
+        ) : null}
       </Card>
 
       <SectionTitle>Treino de hoje</SectionTitle>

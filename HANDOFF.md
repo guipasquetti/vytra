@@ -4372,3 +4372,26 @@ um commit por rodada ou tudo junto.
   A edge function `analyze-anamnese-photo` **não foi publicada**: ela enviaria foto sensível à
   Anthropic e o sign-off LGPD registrado no §56 segue pendente. O commit das mudanças continua
   pendente, pois o working tree também reúne §58 e §59.
+
+## 60. Campos estruturados da anamnese e rotina semanal (19/set)
+
+✅ **Pedido do Guilherme:** tornar a anamnese mais rápida e menos sujeita a erro de preenchimento.
+
+- Removido o campo duplicado de idade; a data de nascimento passou a usar `CampoData` (máscara ISO).
+- Sexo e todas as perguntas fechadas mapeadas agora são escolhas por botão. Perguntas de saúde
+  com resposta sim/não revelam o campo de explicação apenas ao marcar **Sim**.
+- Telefone ganhou identificação explícita de WhatsApp; campos longos preservam largura mínima
+  responsiva; horário de dormir/acordar usa máscara e calcula a média de sono automaticamente.
+- A escolha de sexo atualiza o perfil do paciente e troca imediatamente a silhueta das fotos de
+  linha de base no onboarding. A RPC também ignora data/número parcial ou inválido no autosave,
+  em vez de falhar o envio inteiro.
+- Início do aluno explicita `persistência semanal` e mostra os dias de descanso planejados;
+  a fórmula já deduplicava sessões por dia nos últimos sete dias e não penaliza descanso.
+- `SaveIndicator` foi movido para o canto inferior fixo da tela, visível durante o autosave.
+- Migração [`20260919_anamnese_campos_estruturados.sql`](supabase/migrations/20260919_anamnese_campos_estruturados.sql)
+  aplicada em produção por `supabase db query --file`: `db push` recusou com segurança porque o
+  histórico remoto contém migrações legadas que não existem neste checkout. **Não rodar
+  `migration repair` nem `db pull` sem reconciliar esse histórico primeiro.**
+- Verificado: `npx tsc --noEmit` e `npx expo export --platform web` passam. O lint do repo
+  continua falhando por regras novas aplicadas a efeitos antigos, em telas sem relação com esta
+  mudança; o lint não apontou erro novo desta seção.

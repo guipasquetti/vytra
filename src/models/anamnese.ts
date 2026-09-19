@@ -14,13 +14,17 @@
  * tela só, com scroll), sem campo obrigatório, sem lógica condicional entre perguntas.
  */
 
-export type TipoCampoAnamnese = 'texto' | 'numero' | 'data' | 'area';
+export type TipoCampoAnamnese = 'texto' | 'numero' | 'data' | 'hora' | 'area' | 'calculado';
 
 export type CampoAnamnese = {
   id: string;
   label: string;
   tipo: TipoCampoAnamnese;
   placeholder?: string;
+  /** Alternativas fechadas são renderizadas como botões, não como texto livre. */
+  opcoes?: { valor: string; label: string }[];
+  /** "Sim" revela o campo de detalhe; "Não" encerra a pergunta. */
+  simNaoComDetalhe?: boolean;
 };
 
 export type SecaoAnamnese = {
@@ -34,9 +38,10 @@ export const SECOES_ANAMNESE: SecaoAnamnese[] = [
     campos: [
       { id: 'nome_completo', label: 'Nome completo', tipo: 'texto' },
       { id: 'data_nascimento', label: 'Data de nascimento', tipo: 'data' },
-      { id: 'idade', label: 'Idade', tipo: 'texto' },
-      { id: 'sexo', label: 'Sexo', tipo: 'texto' },
-      { id: 'telefone', label: 'Telefone', tipo: 'texto' },
+      { id: 'sexo', label: 'Sexo', tipo: 'texto', opcoes: [
+        { valor: 'feminino', label: 'Feminino' }, { valor: 'masculino', label: 'Masculino' }, { valor: 'outro', label: 'Outro' },
+      ] },
+      { id: 'telefone', label: 'Telefone com WhatsApp', tipo: 'texto', placeholder: '(11) 99999-9999' },
       { id: 'profissao', label: 'Profissão', tipo: 'texto' },
       { id: 'rotina_trabalho', label: 'Rotina de trabalho (horários, trabalho físico ou sedentário)', tipo: 'area' },
     ],
@@ -55,18 +60,18 @@ export const SECOES_ANAMNESE: SecaoAnamnese[] = [
   {
     titulo: 'Histórico de saúde',
     campos: [
-      { id: 'patologias', label: 'Possui alguma patologia diagnosticada? Se sim, qual(is)?', tipo: 'area', placeholder: 'Ex.: Não' },
+      { id: 'patologias', label: 'Possui alguma patologia diagnosticada?', tipo: 'area', placeholder: 'Conte qual(is)', simNaoComDetalhe: true },
       { id: 'historico_familiar', label: 'Histórico familiar de doenças (diabetes, hipertensão, dislipidemia, obesidade, cardiovasculares, tireoide etc.)', tipo: 'area' },
-      { id: 'cirurgias', label: 'Já realizou cirurgias? Quais e quando?', tipo: 'area', placeholder: 'Ex.: Não' },
-      { id: 'intolerancias_alergias', label: 'Possui intolerâncias ou alergias alimentares?', tipo: 'area' },
-      { id: 'sintomas_gastro', label: 'Sintomas gastrointestinais frequentes (azia, refluxo, constipação, diarreia, gases)?', tipo: 'area', placeholder: 'Ex.: Não' },
+      { id: 'cirurgias', label: 'Já realizou cirurgias?', tipo: 'area', placeholder: 'Quais e quando?', simNaoComDetalhe: true },
+      { id: 'intolerancias_alergias', label: 'Possui intolerâncias ou alergias alimentares?', tipo: 'area', placeholder: 'Conte quais', simNaoComDetalhe: true },
+      { id: 'sintomas_gastro', label: 'Tem sintomas gastrointestinais frequentes?', tipo: 'area', placeholder: 'Conte quais sintomas', simNaoComDetalhe: true },
     ],
   },
   {
     titulo: 'Medicamentos e suplementos',
     campos: [
-      { id: 'medicamentos', label: 'Faz uso de algum medicamento? Qual(is), dose e horário', tipo: 'area', placeholder: 'Ex.: Não' },
-      { id: 'suplementos', label: 'Utiliza suplementos alimentares? (proteína, creatina, vitaminas, termogênicos, outros)', tipo: 'area', placeholder: 'Ex.: Não' },
+      { id: 'medicamentos', label: 'Faz uso de algum medicamento?', tipo: 'area', placeholder: 'Qual(is), dose e horário', simNaoComDetalhe: true },
+      { id: 'suplementos', label: 'Utiliza suplementos alimentares?', tipo: 'area', placeholder: 'Conte quais', simNaoComDetalhe: true },
       { id: 'fitoterapicos', label: 'Uso de fitoterápicos ou chás com frequência', tipo: 'area' },
     ],
   },
@@ -81,9 +86,9 @@ export const SECOES_ANAMNESE: SecaoAnamnese[] = [
       { id: 'lanche_tarde', label: 'Lanche da tarde — o que costuma comer', tipo: 'area' },
       { id: 'jantar', label: 'Jantar — o que costuma comer', tipo: 'area' },
       { id: 'ceia', label: 'Ceia — o que costuma comer', tipo: 'area' },
-      { id: 'beliscar', label: 'Costuma beliscar entre as refeições?', tipo: 'texto' },
-      { id: 'freq_ultraprocessados', label: 'Frequência de consumo de alimentos ultraprocessados', tipo: 'texto' },
-      { id: 'freq_doces_alcool', label: 'Frequência de doces, refrigerantes e bebidas alcoólicas', tipo: 'texto' },
+      { id: 'beliscar', label: 'Costuma beliscar entre as refeições?', tipo: 'texto', opcoes: [{ valor: 'Sim', label: 'Sim' }, { valor: 'Não', label: 'Não' }] },
+      { id: 'freq_ultraprocessados', label: 'Frequência de consumo de alimentos ultraprocessados', tipo: 'texto', opcoes: [{ valor: 'Nunca', label: 'Nunca' }, { valor: 'Às vezes', label: 'Às vezes' }, { valor: 'Frequentemente', label: 'Frequentemente' }] },
+      { id: 'freq_doces_alcool', label: 'Frequência de doces, refrigerantes e bebidas alcoólicas', tipo: 'texto', opcoes: [{ valor: 'Nunca', label: 'Nunca' }, { valor: 'Às vezes', label: 'Às vezes' }, { valor: 'Frequentemente', label: 'Frequentemente' }] },
       { id: 'consumo_agua', label: 'Consumo diário de água (aproximado)', tipo: 'texto' },
     ],
   },
@@ -93,30 +98,30 @@ export const SECOES_ANAMNESE: SecaoAnamnese[] = [
       { id: 'alimentos_gosta', label: 'Alimentos que gosta', tipo: 'area' },
       { id: 'alimentos_nao_gosta', label: 'Alimentos que não gosta', tipo: 'area' },
       { id: 'nao_consome', label: 'Alimentos que não consome por opção (vegetarianismo, veganismo, religião, cultura)', tipo: 'area', placeholder: 'Ex.: Nenhum' },
-      { id: 'facilidade_cozinhar', label: 'Facilidade para cozinhar em casa', tipo: 'texto' },
-      { id: 'refeicoes_fora', label: 'Realiza refeições fora de casa com frequência? Onde?', tipo: 'texto' },
+      { id: 'facilidade_cozinhar', label: 'Facilidade para cozinhar em casa', tipo: 'texto', opcoes: [{ valor: 'Fácil', label: 'Fácil' }, { valor: 'Moderada', label: 'Moderada' }, { valor: 'Difícil', label: 'Difícil' }] },
+      { id: 'refeicoes_fora', label: 'Realiza refeições fora de casa com frequência?', tipo: 'texto', placeholder: 'Onde costuma comer?', simNaoComDetalhe: true },
     ],
   },
   {
     titulo: 'Atividade física',
     campos: [
-      { id: 'pratica_atividade', label: 'Pratica atividade física? Qual(is) modalidade(s)?', tipo: 'area', placeholder: 'Ex.: Não' },
+      { id: 'pratica_atividade', label: 'Pratica atividade física?', tipo: 'area', placeholder: 'Qual(is) modalidade(s)?', simNaoComDetalhe: true },
       { id: 'tempo_treino', label: 'Tempo de treino (meses/anos)', tipo: 'texto' },
       { id: 'freq_musculacao', label: 'Frequência semanal de treino de força/musculação', tipo: 'texto' },
       { id: 'freq_cardio', label: 'Frequência semanal de cardio', tipo: 'texto' },
       { id: 'duracao_treinos', label: 'Duração média dos treinos', tipo: 'texto' },
-      { id: 'intensidade', label: 'Intensidade percebida (leve, moderada, intensa)', tipo: 'texto' },
-      { id: 'limitacao_fisica', label: 'Possui alguma limitação física, dor ou lesão?', tipo: 'area', placeholder: 'Ex.: Não' },
+      { id: 'intensidade', label: 'Intensidade percebida', tipo: 'texto', opcoes: [{ valor: 'Leve', label: 'Leve' }, { valor: 'Moderada', label: 'Moderada' }, { valor: 'Intensa', label: 'Intensa' }] },
+      { id: 'limitacao_fisica', label: 'Possui alguma limitação física, dor ou lesão?', tipo: 'area', placeholder: 'Conte qual', simNaoComDetalhe: true },
     ],
   },
   {
     titulo: 'Sono e rotina',
     campos: [
-      { id: 'horario_dormir', label: 'Horário que costuma dormir', tipo: 'texto' },
-      { id: 'horario_acordar', label: 'Horário que costuma acordar', tipo: 'texto' },
-      { id: 'horas_sono', label: 'Média de horas de sono por noite', tipo: 'texto' },
-      { id: 'qualidade_sono', label: 'Qualidade do sono (boa, regular, ruim)', tipo: 'texto' },
-      { id: 'acorda_descansado', label: 'Acorda descansado?', tipo: 'texto' },
+      { id: 'horario_dormir', label: 'Horário que costuma dormir', tipo: 'hora' },
+      { id: 'horario_acordar', label: 'Horário que costuma acordar', tipo: 'hora' },
+      { id: 'horas_sono', label: 'Média de horas de sono por noite', tipo: 'calculado' },
+      { id: 'qualidade_sono', label: 'Qualidade do sono', tipo: 'texto', opcoes: [{ valor: 'Boa', label: 'Boa' }, { valor: 'Regular', label: 'Regular' }, { valor: 'Ruim', label: 'Ruim' }] },
+      { id: 'acorda_descansado', label: 'Acorda descansado?', tipo: 'texto', opcoes: [{ valor: 'Sim', label: 'Sim' }, { valor: 'Não', label: 'Não' }] },
     ],
   },
   {
@@ -138,6 +143,25 @@ export const SECOES_ANAMNESE: SecaoAnamnese[] = [
 ];
 
 export type RespostasAnamnese = Record<string, string>;
+
+/** Calcula a duração do sono, inclusive quando a pessoa dorme antes da meia-noite. */
+export function calcularMediaSono(horarioDormir: string, horarioAcordar: string): string {
+  const paraMinutos = (horario: string): number | null => {
+    const partes = /^(\d{2}):(\d{2})$/.exec(horario.trim());
+    if (!partes) return null;
+    const horas = Number(partes[1]);
+    const minutos = Number(partes[2]);
+    return horas < 24 && minutos < 60 ? horas * 60 + minutos : null;
+  };
+  const dormir = paraMinutos(horarioDormir);
+  const acordar = paraMinutos(horarioAcordar);
+  if (dormir == null || acordar == null) return '';
+  let duracao = acordar - dormir;
+  if (duracao <= 0) duracao += 24 * 60;
+  const horas = Math.floor(duracao / 60);
+  const minutos = duracao % 60;
+  return minutos ? `${horas}h ${minutos}min` : `${horas}h`;
+}
 
 /**
  * Colunas fixas da tabela `anamnese`, extraídas do jsonb de respostas.

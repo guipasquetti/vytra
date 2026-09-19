@@ -98,6 +98,7 @@ export default function AnamneseAlunoScreen() {
     <Screen
       title="Minha anamnese"
       subtitle="Mantenha essas informações atualizadas para seu profissional"
+      floating={<SaveIndicator status={statusSalvamento} />}
       voltar>
       {solicitadaEm ? (
         <Card>
@@ -111,7 +112,6 @@ export default function AnamneseAlunoScreen() {
           <Caption>Última atualização em {new Date(atualizadoEm).toLocaleDateString('pt-BR')}</Caption>
         </Card>
       ) : null}
-      <SaveIndicator status={statusSalvamento} />
       <AnamneseCampos respostas={respostas} onChange={atualizarResposta} />
       <AnamneseFoto clientId={user.id} fotoPath={fotoPath} onFotoChange={setFotoPath} />
       {erro ? <Caption color={Palette.danger}>{erro}</Caption> : null}

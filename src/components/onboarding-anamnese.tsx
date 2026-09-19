@@ -4,10 +4,11 @@ import { useCallback, useEffect, useState } from 'react';
 import { Modal, StyleSheet, View } from 'react-native';
 
 import { CameraGuiada, type AnguloFoto } from '@/components/camera-guiada';
+import { CampoData, CampoHora } from '@/components/campo-data';
 import { SaveIndicator, type StatusSalvamento } from '@/components/save-indicator';
 import { Body, Button, Caption, Card, Field, FotoAmpliavel, Pill, Screen, SectionTitle } from '@/components/ui';
 import { supabase } from '@/lib/supabase';
-import { SECOES_ANAMNESE, type RespostasAnamnese } from '@/models/anamnese';
+import { calcularMediaSono, SECOES_ANAMNESE, type CampoAnamnese, type RespostasAnamnese } from '@/models/anamnese';
 import {
   obterAnaliseFotoAnamnese,
   obterUrlFotoAnamnese,
@@ -48,23 +49,83 @@ export function AnamneseCampos({
   onChange: (id: string, valor: string) => void;
   somenteLeitura?: boolean;
 }) {
+  function mudarCampo(id: string, valor: string) {
+    onChange(id, valor);
+    if (id !== 'horario_dormir' && id !== 'horario_acordar') return;
+    const media = calcularMediaSono(
+      id === 'horario_dormir' ? valor : respostas.horario_dormir ?? '',
+      id === 'horario_acordar' ? valor : respostas.horario_acordar ?? '',
+    );
+    onChange('horas_sono', media);
+  }
+
+  function renderCampo(campo: CampoAnamnese) {
+    const valor = respostas[campo.id] ?? '';
+    const somenteTexto = somenteLeitura ? <Body>{valor || '—'}</Body> : null;
+    if (somenteLeitura) return <View key={campo.id} style={styles.campoLeitura}><Caption>{campo.label}</Caption>{somenteTexto}</View>;
+
+    if (campo.tipo === 'data') {
+      return <CampoData key={campo.id} label={campo.label} value={valor} onChangeText={(v) => mudarCampo(campo.id, v)} />;
+    }
+    if (campo.tipo === 'hora') {
+      return <CampoHora key={campo.id} label={campo.label} value={valor} onChangeText={(v) => mudarCampo(campo.id, v)} />;
+    }
+    if (campo.tipo === 'calculado') {
+      return <View key={campo.id} style={styles.campoCalculado}><Caption>{campo.label}</Caption><Body color={valor ? Palette.accent : Palette.textTertiary}>{valor || 'Informe os dois horários acima'}</Body></View>;
+    }
+    if (campo.simNaoComDetalhe) {
+      const respondeuNao = /^n[aã]o$/i.test(valor.trim());
+      const respondeuSim = Boolean(valor) && !respondeuNao;
+      return (
+        <View key={campo.id} style={styles.campoEscolha}>
+          <Caption>{campo.label}</Caption>
+          <View style={styles.opcoes}>
+            <Pill label="Não" active={respondeuNao} onPress={() => mudarCampo(campo.id, 'Não')} />
+            <Pill label="Sim" active={respondeuSim} onPress={() => mudarCampo(campo.id, 'Sim')} />
+          </View>
+          {respondeuSim ? (
+            <Field
+              label="Conte mais"
+              value={valor === 'Sim' ? '' : valor}
+              onChangeText={(v) => mudarCampo(campo.id, v)}
+              placeholder={campo.placeholder}
+              multiline={campo.tipo === 'area'}
+            />
+          ) : null}
+        </View>
+      );
+    }
+    if (campo.opcoes) {
+      return (
+        <View key={campo.id} style={styles.campoEscolha}>
+          <Caption>{campo.label}</Caption>
+          <View style={styles.opcoes}>
+            {campo.opcoes.map((opcao) => (
+              <Pill key={opcao.valor} label={opcao.label} active={valor === opcao.valor} onPress={() => mudarCampo(campo.id, opcao.valor)} />
+            ))}
+          </View>
+        </View>
+      );
+    }
+    return (
+      <Field
+        key={campo.id}
+        label={campo.label}
+        value={valor}
+        onChangeText={(v) => mudarCampo(campo.id, v)}
+        placeholder={campo.placeholder}
+        keyboardType={campo.tipo === 'numero' ? 'decimal-pad' : 'default'}
+        multiline={campo.tipo === 'area'}
+      />
+    );
+  }
+
   return (
     <>
       {SECOES_ANAMNESE.map((secao) => (
         <Card key={secao.titulo}>
           <SectionTitle>{secao.titulo}</SectionTitle>
-          {secao.campos.map((campo) => (
-            <Field
-              key={campo.id}
-              label={campo.label}
-              value={respostas[campo.id] ?? ''}
-              onChangeText={(v) => onChange(campo.id, v)}
-              placeholder={campo.placeholder}
-              keyboardType={campo.tipo === 'numero' ? 'decimal-pad' : 'default'}
-              multiline={campo.tipo === 'area'}
-              editable={!somenteLeitura}
-            />
-          ))}
+          {secao.campos.map(renderCampo)}
         </Card>
       ))}
     </>
@@ -218,7 +279,10 @@ export function AnamneseFoto({
 
 /** Linha de base visual: mesmas quatro poses e guia do check-in; paths ficam no JSON da anamnese. */
 export function LinhaBaseFotos({ clientId, respostas, onChange, somenteLeitura = false }: { clientId: string; respostas: RespostasAnamnese; onChange: (id: string, valor: string) => void; somenteLeitura?: boolean }) {
-  const sexo = useAuthStore((store) => store.profile?.sexo);
+  const sexoPerfil = useAuthStore((store) => store.profile?.sexo);
+  // No onboarding, a escolha recém-feita ainda não foi persistida em `profile`; usar a
+  // resposta atual garante que a referência muda imediatamente para a silhueta correta.
+  const sexo = respostas.sexo || sexoPerfil;
   const [camera, setCamera] = useState<AnguloFoto | null>(null);
   const [abrirCamera, setAbrirCamera] = useState(false);
   const [consentiu, setConsentiu] = useState(Boolean(respostas.__consentimento_linha_base));
@@ -391,14 +455,13 @@ export function OnboardingAnamnese({ onConcluido }: { onConcluido: () => void })
   }
 
   return (
-    <Screen title="Vamos te conhecer" subtitle="Antes de começar, responde a anamnese e escolhe seu plano">
+    <Screen title="Vamos te conhecer" subtitle="Antes de começar, responde a anamnese e escolhe seu plano" floating={<SaveIndicator status={statusSalvamento} />}>
       <Card>
         <View style={styles.cabecalhoIntro}>
           <Caption>
             Suas respostas são usadas só pelo profissional que te convidou, pra montar seu plano.
             Nenhum campo é obrigatório — responda o que fizer sentido.
           </Caption>
-          <SaveIndicator status={statusSalvamento} />
         </View>
       </Card>
 
@@ -446,6 +509,20 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: Spacing.sm,
+  },
+  opcoes: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Spacing.sm,
+  },
+  campoEscolha: {
+    gap: Spacing.xs,
+  },
+  campoCalculado: {
+    gap: Spacing.xs,
+  },
+  campoLeitura: {
+    gap: Spacing.xs,
   },
   cabecalhoIntro: {
     gap: Spacing.sm,
