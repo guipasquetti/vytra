@@ -3,9 +3,9 @@ import { Pressable, StyleSheet, Switch, TextInput, View } from 'react-native';
 
 import { Body, Button, Caption, Card, EmptyState, Loading, Screen, SectionTitle } from '@/components/ui';
 import {
-  possuiDeclaracao,
+  possuiDeclaracaoTreino,
   registrarDeclaracao,
-  TEXTO_DECLARACAO_TREINO_SEM_CREF,
+  TEXTO_DECLARACAO_TREINO_SEM_REGISTRO,
 } from '@/services/declaracaoService';
 import {
   alternarPlanoAtivo,
@@ -14,7 +14,7 @@ import {
   listarPlanos,
   type PlanoProfissional,
 } from '@/services/professionalService';
-import { obterMinhaVerificacao } from '@/services/verificacaoService';
+import { obterModulosCobertos } from '@/services/verificacaoService';
 import { useAuthStore } from '@/store/authStore';
 import { FontSize, Palette, Radius, RoleColors, Spacing } from '@/theme';
 
@@ -197,27 +197,26 @@ function PlanoForm({
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
 
-  // Blindagem de responsabilidade (§48 do handoff): habilitar treino sem CREF exige uma
-  // declaração explícita do profissional, registrada com data/hora — nunca sozinho pelo
-  // toggle. `temCref === null` enquanto carrega: trata como "precisa declarar" até confirmar
-  // o contrário, nunca o inverso (defesa em profundidade, não vaza um instante de UI liberada
-  // à toa).
-  const [temCref, setTemCref] = useState<boolean | null>(null);
+  // Blindagem de responsabilidade (§48 do handoff): habilitar treino sem registro numa
+  // profissão que cubra treino (catálogo `profissoes`, 19/set) exige uma declaração explícita,
+  // registrada com data/hora, nunca sozinho pelo toggle. `temRegistroTreino === null` enquanto
+  // carrega: trata como "precisa declarar" até confirmar o contrário, nunca o inverso.
+  const [temRegistroTreino, setTemRegistroTreino] = useState<boolean | null>(null);
   const [jaDeclarou, setJaDeclarou] = useState(false);
   const [mostrandoDeclaracao, setMostrandoDeclaracao] = useState(false);
   const [declarando, setDeclarando] = useState(false);
 
   useEffect(() => {
     Promise.all([
-      obterMinhaVerificacao(professionalId),
-      possuiDeclaracao(professionalId, 'treino_sem_cref'),
-    ]).then(([verificacao, declarado]) => {
-      setTemCref(verificacao?.tipoRegistro === 'CREF');
+      obterModulosCobertos(professionalId),
+      possuiDeclaracaoTreino(professionalId),
+    ]).then(([modulos, declarado]) => {
+      setTemRegistroTreino(modulos.has('treino'));
       setJaDeclarou(declarado);
     });
   }, [professionalId]);
 
-  const precisaDeclarar = temCref === false && !jaDeclarou;
+  const precisaDeclarar = temRegistroTreino === false && !jaDeclarou;
 
   function alternarTreino(valor: boolean) {
     if (!valor) {
@@ -234,7 +233,7 @@ function PlanoForm({
   async function confirmarDeclaracao() {
     setDeclarando(true);
     try {
-      await registrarDeclaracao(professionalId, 'treino_sem_cref', TEXTO_DECLARACAO_TREINO_SEM_CREF);
+      await registrarDeclaracao(professionalId, 'treino_sem_registro', TEXTO_DECLARACAO_TREINO_SEM_REGISTRO);
       setJaDeclarou(true);
       setIncluiTreino(true);
       setMostrandoDeclaracao(false);
@@ -253,7 +252,7 @@ function PlanoForm({
     // Defesa em profundidade: a UI já impede chegar aqui com treino ligado sem declarar, mas
     // confere de novo antes de gravar.
     if (incluiTreino && precisaDeclarar) {
-      setErro('Precisa declarar responsabilidade pra habilitar treino sem CREF.');
+      setErro('Precisa declarar responsabilidade pra habilitar treino sem registro na área.');
       return;
     }
     setErro(null);
@@ -306,7 +305,7 @@ function PlanoForm({
         <Switch
           value={incluiTreino}
           onValueChange={alternarTreino}
-          disabled={temCref === null}
+          disabled={temRegistroTreino === null}
           trackColor={{ true: Palette.green, false: Palette.surfaceElevated }}
         />
       </View>
@@ -321,7 +320,7 @@ function PlanoForm({
 
       {mostrandoDeclaracao ? (
         <View style={styles.declaracao}>
-          <Caption color={Palette.text}>{TEXTO_DECLARACAO_TREINO_SEM_CREF}</Caption>
+          <Caption color={Palette.text}>{TEXTO_DECLARACAO_TREINO_SEM_REGISTRO}</Caption>
           <View style={styles.switchRow}>
             <Button
               label="Concordo e habilito"

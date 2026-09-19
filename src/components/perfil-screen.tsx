@@ -10,7 +10,13 @@ import { listarAlunos, listarMeusProfissionais } from '@/services/professionalSe
 import { atualizarPerfil, signOut } from '@/services/authService';
 import { rotuloEspecialidade } from '@/services/solicitacoesService';
 import { proximaTeleconsulta, type Teleconsulta } from '@/services/teleconsultaService';
-import { obterMinhaVerificacao, rotuloTipoRegistro, type VerificacaoProfissional } from '@/services/verificacaoService';
+import {
+  listarMeusRegistros,
+  listarProfissoes,
+  obterSelosProfissionais,
+  rotuloSelo,
+  type SeloProfissional,
+} from '@/services/verificacaoService';
 import { supabase } from '@/lib/supabase';
 import { hardwareDisponivel, lerPreferenciaLock, salvarPreferenciaLock } from '@/lib/localAuthLock';
 import { useAuthStore } from '@/store/authStore';
@@ -21,7 +27,7 @@ type Vinculo = {
   detalhe: string;
   verificado?: boolean;
   bio?: string | null;
-  tipoRegistro?: string | null;
+  areas?: string[];
 };
 
 const OPCOES_SEXO = [
@@ -49,7 +55,8 @@ export function PerfilScreen() {
   const [vinculos, setVinculos] = useState<Vinculo[]>([]);
   const [proximaConsulta, setProximaConsulta] = useState<Teleconsulta | null>(null);
   const [especialidade, setEspecialidade] = useState<string | null>(null);
-  const [verificacao, setVerificacao] = useState<VerificacaoProfissional | null>(null);
+  const [meuSelo, setMeuSelo] = useState<SeloProfissional | null>(null);
+  const [meusRegistros, setMeusRegistros] = useState<{ label: string; valor: string }[]>([]);
   const [anamneseSolicitada, setAnamneseSolicitada] = useState(false);
   const [suportaBiometria, setSuportaBiometria] = useState(false);
   const [lockAtivado, setLockAtivado] = useState(false);
@@ -81,7 +88,19 @@ export function PerfilScreen() {
         .eq('id', user.id)
         .maybeSingle()
         .then(({ data }) => setEspecialidade(data?.especialidade ?? null));
-      obterMinhaVerificacao(user.id).then(setVerificacao);
+      obterSelosProfissionais([user.id]).then((selos) => setMeuSelo(selos.get(user.id) ?? null));
+      Promise.all([listarMeusRegistros(user.id), listarProfissoes(false)]).then(([registros, profissoes]) =>
+        setMeusRegistros(
+          registros.map((r) => {
+            const profissao = profissoes.find((p) => p.codigo === r.profissao);
+            const conselho = profissao?.conselhoSigla ? ` (${profissao.conselhoSigla})` : '';
+            return {
+              label: `${profissao?.nome ?? r.profissao}${conselho}`,
+              valor: `${r.numero} / ${r.uf} · ${ROTULOS_STATUS_VERIFICACAO[r.status] ?? r.status}`,
+            };
+          }),
+        ),
+      );
     } else {
       listarMeusProfissionais(user.id).then((profissionais) =>
         setVinculos(
@@ -90,7 +109,7 @@ export function PerfilScreen() {
             detalhe: p.planoNome ?? 'Sem plano definido',
             verificado: p.verificado,
             bio: p.bio,
-            tipoRegistro: p.tipoRegistro,
+            areas: p.areas,
           })),
         ),
       );
@@ -156,11 +175,7 @@ export function PerfilScreen() {
         { label: 'E-mail', valor: profile?.email ?? '—' },
         { label: 'Telefone', valor: profile?.telefone || '—' },
         { label: 'Especialidade', valor: especialidade ? rotuloEspecialidade(especialidade) : '—' },
-        { label: 'Registro', valor: verificacao ? `${verificacao.numeroRegistro} / ${verificacao.ufRegistro}` : '—' },
-        {
-          label: 'Verificação',
-          valor: verificacao ? ROTULOS_STATUS_VERIFICACAO[verificacao.status] ?? verificacao.status : '—',
-        },
+        ...(meusRegistros.length ? meusRegistros : [{ label: 'Registro', valor: '—' }]),
       ]
     : [
         { label: 'E-mail', valor: profile?.email ?? '—' },
@@ -219,8 +234,8 @@ export function PerfilScreen() {
             <View style={styles.cabecalho}>
               <View style={styles.nomeComSelo}>
                 <Body>{profile?.nome || 'Sem nome'}</Body>
-                {isProfessional && verificacao?.status === 'aprovado' ? (
-                  <SeloVerificado label={rotuloTipoRegistro(verificacao.tipoRegistro)} />
+                {isProfessional && meuSelo?.verificado ? (
+                  <SeloVerificado label={rotuloSelo(meuSelo.areas)} />
                 ) : null}
               </View>
               <Button label="Editar" variant="ghost" onPress={iniciarEdicao} />
@@ -239,12 +254,11 @@ export function PerfilScreen() {
         <Card>
           <SectionTitle>Cadastro profissional</SectionTitle>
           <Caption>
-            Tirou um registro novo (ex.: CRN além do CREF) ou quer atualizar dados do conselho?
-            Uma alteração volta seu cadastro pra análise — o selo de verificado some até um
-            admin confirmar de novo.
+            Tem registro em outra área ou precisa atualizar um conselho? Cada registro é
+            conferido separadamente, e o selo das áreas já verificadas continua no perfil.
           </Caption>
           <Button
-            label="Solicitar alteração de cadastro"
+            label="Registros e bio"
             variant="ghost"
             onPress={() => router.push('/pro/cadastro-editar')}
           />
@@ -296,7 +310,7 @@ export function PerfilScreen() {
           <Card key={i}>
             <View style={styles.nomeComSelo}>
               <Body>{v.titulo}</Body>
-              {v.verificado ? <SeloVerificado size={14} label={rotuloTipoRegistro(v.tipoRegistro ?? null)} /> : null}
+              {v.verificado ? <SeloVerificado size={14} label={rotuloSelo(v.areas)} /> : null}
             </View>
             <Caption>{v.detalhe}</Caption>
             {v.bio ? <Caption color={Palette.text}>{v.bio}</Caption> : null}

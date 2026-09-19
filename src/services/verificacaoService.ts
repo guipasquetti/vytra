@@ -2,17 +2,113 @@ import { supabase } from '@/lib/supabase';
 
 export type StatusVerificacao = 'pendente' | 'aprovado' | 'rejeitado';
 
-/** Conselho do registro — não confundir com `professionals.especialidade` (§45 do handoff):
- *  especialidade escolhe o Painel/dashboard; tipo_registro é o que o selo afirma de verdade. */
-export type TipoRegistro = 'CREF' | 'CRN';
-
-const ROTULOS_TIPO_REGISTRO: Record<TipoRegistro, string> = {
-  CREF: 'EF',
-  CRN: 'NT',
+/**
+ * Catálogo de profissões (tabela `profissoes`, 19/set). Abrir profissão nova é uma linha no
+ * banco, sem migração nem deploy: o app só lê o que está lá. `siglaSelo` é o rótulo do selo
+ * (decisão 14/set: sigla compacta, NT/EF/FT); a sigla do conselho (CRN/CREF/CREFITO) aparece
+ * só em formulário e na fila do admin, nunca pro paciente.
+ */
+export type Profissao = {
+  codigo: string;
+  nome: string;
+  siglaSelo: string;
+  conselhoSigla: string | null;
+  conselhoNome: string | null;
+  urlConsulta: string | null;
+  modulos: string[];
+  painel: string;
+  ativo: boolean;
 };
 
-export function rotuloTipoRegistro(tipo: string | null): string | null {
-  return tipo && tipo in ROTULOS_TIPO_REGISTRO ? ROTULOS_TIPO_REGISTRO[tipo as TipoRegistro] : null;
+export async function listarProfissoes(apenasAtivas = true): Promise<Profissao[]> {
+  let query = supabase.from('profissoes').select('*').order('ordem');
+  if (apenasAtivas) query = query.eq('ativo', true);
+  const { data } = await query;
+  return (data ?? []).map((p) => ({
+    codigo: p.codigo,
+    nome: p.nome,
+    siglaSelo: p.sigla_selo,
+    conselhoSigla: p.conselho_sigla,
+    conselhoNome: p.conselho_nome,
+    urlConsulta: p.url_consulta,
+    modulos: p.modulos,
+    painel: p.painel,
+    ativo: p.ativo,
+  }));
+}
+
+/** Rótulo do selo a partir das siglas das áreas verificadas (ex.: "NT · EF"). */
+export function rotuloSelo(areas: string[] | null | undefined): string | null {
+  return areas && areas.length ? areas.join(' · ') : null;
+}
+
+/** Um registro em conselho do profissional. Cada um tem a própria verificação: somar ou
+ *  corrigir um registro não derruba o selo dos outros já aprovados. */
+export type RegistroProfissional = {
+  id: string;
+  profissao: string;
+  numero: string;
+  uf: string;
+  status: StatusVerificacao;
+  motivoRejeicao: string | null;
+  documentoPath: string | null;
+};
+
+export async function listarMeusRegistros(professionalId: string): Promise<RegistroProfissional[]> {
+  const { data } = await supabase
+    .from('professional_registros')
+    .select('id, profissao, numero, uf, status, motivo_rejeicao, documento_path')
+    .eq('professional_id', professionalId)
+    .order('created_at');
+  return (data ?? []).map((r) => ({
+    id: r.id,
+    profissao: r.profissao,
+    numero: r.numero,
+    uf: r.uf,
+    status: r.status as StatusVerificacao,
+    motivoRejeicao: r.motivo_rejeicao,
+    documentoPath: r.documento_path,
+  }));
+}
+
+/** Cria ou atualiza um registro via RPC `solicitar_registro` (volta só ele pra pendente). */
+export async function solicitarRegistro(params: {
+  profissao: string;
+  numero: string;
+  uf: string;
+  documentoPath?: string;
+}): Promise<void> {
+  const { error } = await supabase.rpc('solicitar_registro', {
+    p_profissao: params.profissao,
+    p_numero: params.numero,
+    p_uf: params.uf,
+    p_documento_path: params.documentoPath,
+  });
+  if (error) throw error;
+}
+
+/** Bio não reabre verificação (antes derrubava o selo). */
+export async function atualizarMinhaBio(bio: string): Promise<void> {
+  const { error } = await supabase.rpc('atualizar_minha_bio', { p_bio: bio });
+  if (error) throw error;
+}
+
+/**
+ * Módulos (dieta/treino) cobertos por registros NÃO rejeitados do profissional, pelo catálogo.
+ * Pendente conta, como já contava o `tipo_registro` antigo: a declaração de responsabilidade é
+ * pra quem não tem registro na área, não pra quem está aguardando conferência.
+ */
+export async function obterModulosCobertos(professionalId: string): Promise<Set<string>> {
+  const [registros, profissoes] = await Promise.all([
+    listarMeusRegistros(professionalId),
+    listarProfissoes(false),
+  ]);
+  const modulos = new Set<string>();
+  for (const r of registros) {
+    if (r.status === 'rejeitado') continue;
+    profissoes.find((p) => p.codigo === r.profissao)?.modulos.forEach((m) => modulos.add(m));
+  }
+  return modulos;
 }
 
 export type VerificacaoProfissional = {
@@ -29,23 +125,26 @@ export type SeloProfissional = {
   verificado: boolean;
   bio: string | null;
   tipoRegistro: string | null;
+  /** Siglas das áreas com registro aprovado, na ordem do catálogo (ex.: ["NT", "EF"]). */
+  areas: string[];
 };
 
-export type SolicitacaoVerificacaoAdmin = {
+/** Admin: um registro aguardando conferência, com o mínimo pra decidir (nunca dado de saúde). */
+export type SolicitacaoRegistroAdmin = {
   id: string;
   professionalId: string;
   professionalNome: string;
   professionalEmail: string | null;
-  especialidade: string;
   cpf: string | null;
-  numeroRegistro: string;
-  ufRegistro: string;
-  /** CREF/CRN do registro sendo pedido — pode divergir de `especialidade` num pedido de
-   *  alteração (§45 do handoff), é o que decide pra qual conselho conferir. */
-  tipoRegistro: string | null;
-  documentoPath: string | null;
   bio: string | null;
-  status: StatusVerificacao;
+  profissaoNome: string;
+  conselhoSigla: string | null;
+  urlConsulta: string | null;
+  numero: string;
+  uf: string;
+  documentoPath: string | null;
+  /** Outras áreas já aprovadas do mesmo profissional: mostra que é um registro somado. */
+  areasAprovadas: string[];
   createdAt: string;
 };
 
@@ -56,10 +155,12 @@ export type SolicitacaoVerificacaoAdmin = {
  */
 export async function uploadDocumentoVerificacao(
   userId: string,
-  arquivo: { uri: string; name: string }
+  arquivo: { uri: string; name: string },
+  profissao?: string,
 ): Promise<string> {
   const extensao = arquivo.name.includes('.') ? arquivo.name.split('.').pop() : 'pdf';
-  const caminho = `${userId}/carteirinha.${extensao}`;
+  // Um arquivo por registro: com mais de um conselho, `carteirinha.ext` sobrescreveria o outro.
+  const caminho = `${userId}/${profissao ? `registro-${profissao}` : 'carteirinha'}.${extensao}`;
   const resposta = await fetch(arquivo.uri);
   const blob = await resposta.blob();
   const { error } = await supabase.storage
@@ -69,9 +170,11 @@ export async function uploadDocumentoVerificacao(
   return caminho;
 }
 
-/** Cria conta de profissional + verificação pendente, tudo na RPC `cadastrar_profissional`. */
+/** Cria conta de profissional + verificação pendente + primeiro registro, tudo na RPC
+ *  `cadastrar_profissional`. `especialidade` (Painel) é derivada da profissão no banco. */
 export async function cadastrarProfissional(params: {
   nome: string;
+  profissao: string;
   especialidade: string;
   cpf: string;
   numeroRegistro: string;
@@ -87,6 +190,7 @@ export async function cadastrarProfissional(params: {
     p_uf_registro: params.ufRegistro,
     p_documento_path: params.documentoPath,
     p_bio: params.bio,
+    p_profissao: params.profissao,
   });
   if (error) throw error;
   return data === true;
@@ -111,39 +215,6 @@ export async function obterMinhaVerificacao(professionalId: string): Promise<Ver
 }
 
 /**
- * Profissional pede alteração no próprio registro (ex.: tirou o CRN depois de já ter
- * cadastro aprovado só com CREF, ou quer atualizar UF/bio) — reenvia pra fila de aprovação do
- * admin. A RLS `professional_verificacoes_update_self` (§8/§44 do handoff) só aceita o update
- * se o resultado tiver `status = 'pendente'`, então isso é sempre explícito aqui: não dá pra
- * editar sem reabrir verificação, de propósito — evita profissional aprovado mudar o registro
- * sem passar por conferência humana de novo.
- */
-export async function solicitarAlteracaoCadastro(
-  professionalId: string,
-  params: {
-    tipoRegistro: TipoRegistro;
-    numeroRegistro: string;
-    ufRegistro: string;
-    bio: string;
-    documentoPath?: string;
-  },
-): Promise<void> {
-  const { error } = await supabase
-    .from('professional_verificacoes')
-    .update({
-      tipo_registro: params.tipoRegistro,
-      numero_registro: params.numeroRegistro,
-      uf_registro: params.ufRegistro,
-      bio: params.bio || null,
-      status: 'pendente',
-      motivo_rejeicao: null,
-      ...(params.documentoPath ? { documento_path: params.documentoPath } : {}),
-    })
-    .eq('professional_id', professionalId);
-  if (error) throw error;
-}
-
-/**
  * Selo público em lote pro paciente — via RPC `obter_selo_profissionais` (SECURITY DEFINER),
  * não lê `professional_verificacoes` direto (RLS bloqueia paciente ali, de propósito, ver
  * migração `20260914_selo_profissional.sql`). Retorna só `verificado`/`bio`, nunca CPF/
@@ -160,43 +231,63 @@ export async function obterSelosProfissionais(
   return new Map(
     data.map((row) => [
       row.professional_id,
-      { verificado: row.verificado, bio: row.bio, tipoRegistro: row.tipo_registro },
+      { verificado: row.verificado, bio: row.bio, tipoRegistro: row.tipo_registro, areas: row.areas ?? [] },
     ]),
   );
 }
 
-/** Admin: fila de solicitações pendentes, com o mínimo pra decidir (nunca dado de saúde). */
-export async function listarVerificacoesPendentes(): Promise<SolicitacaoVerificacaoAdmin[]> {
-  const { data: verificacoes } = await supabase
-    .from('professional_verificacoes')
+/** Admin: fila de registros pendentes (§ catálogo de profissões, 19/set). */
+export async function listarRegistrosPendentes(): Promise<SolicitacaoRegistroAdmin[]> {
+  const { data: pendentes } = await supabase
+    .from('professional_registros')
     .select('*')
     .eq('status', 'pendente')
-    .order('created_at', { ascending: true });
+    .order('updated_at', { ascending: true });
 
-  const linhas = verificacoes ?? [];
+  const linhas = pendentes ?? [];
   if (!linhas.length) return [];
 
-  const ids = linhas.map((v) => v.professional_id);
-  const [{ data: profissionais }, { data: perfis }] = await Promise.all([
-    supabase.from('professionals').select('id, especialidade').in('id', ids),
+  const ids = [...new Set(linhas.map((r) => r.professional_id))];
+  const [{ data: perfis }, { data: verificacoes }, { data: aprovados }, profissoes] = await Promise.all([
     supabase.from('profiles').select('id, nome, email').in('id', ids),
+    supabase.from('professional_verificacoes').select('professional_id, cpf, bio').in('professional_id', ids),
+    supabase.from('professional_registros').select('professional_id, profissao').eq('status', 'aprovado').in('professional_id', ids),
+    listarProfissoes(false),
   ]);
 
-  return linhas.map((v) => ({
-    id: v.id,
-    professionalId: v.professional_id,
-    professionalNome: perfis?.find((p) => p.id === v.professional_id)?.nome || 'Sem nome',
-    professionalEmail: perfis?.find((p) => p.id === v.professional_id)?.email ?? null,
-    especialidade: profissionais?.find((p) => p.id === v.professional_id)?.especialidade ?? '',
-    cpf: v.cpf,
-    numeroRegistro: v.numero_registro,
-    ufRegistro: v.uf_registro,
-    tipoRegistro: v.tipo_registro,
-    documentoPath: v.documento_path,
-    bio: v.bio,
-    status: v.status as StatusVerificacao,
-    createdAt: v.created_at,
-  }));
+  return linhas.map((r) => {
+    const profissao = profissoes.find((p) => p.codigo === r.profissao);
+    const verificacao = verificacoes?.find((v) => v.professional_id === r.professional_id);
+    const perfil = perfis?.find((p) => p.id === r.professional_id);
+    return {
+      id: r.id,
+      professionalId: r.professional_id,
+      professionalNome: perfil?.nome || 'Sem nome',
+      professionalEmail: perfil?.email ?? null,
+      cpf: verificacao?.cpf ?? null,
+      bio: verificacao?.bio ?? null,
+      profissaoNome: profissao?.nome ?? r.profissao,
+      conselhoSigla: profissao?.conselhoSigla ?? null,
+      urlConsulta: profissao?.urlConsulta ?? null,
+      numero: r.numero,
+      uf: r.uf,
+      documentoPath: r.documento_path,
+      areasAprovadas: (aprovados ?? [])
+        .filter((a) => a.professional_id === r.professional_id)
+        .map((a) => profissoes.find((p) => p.codigo === a.profissao)?.nome ?? a.profissao),
+      createdAt: r.updated_at,
+    };
+  });
+}
+
+/** Aprova/rejeita um registro (RPC admin-only). Aprovar o primeiro também aprova a conta. */
+export async function revisarRegistro(id: string, aprovar: boolean, motivo?: string): Promise<void> {
+  const { error } = await supabase.rpc('revisar_registro', {
+    p_registro_id: id,
+    p_aprovar: aprovar,
+    p_motivo: motivo,
+  });
+  if (error) throw error;
 }
 
 /** Admin: link temporário (1h) pra abrir o documento no bucket privado. */
@@ -205,20 +296,4 @@ export async function obterUrlDocumento(caminho: string): Promise<string | null>
     .from('documentos-profissionais')
     .createSignedUrl(caminho, 3600);
   return data?.signedUrl ?? null;
-}
-
-export async function aprovarVerificacao(id: string, adminId: string): Promise<void> {
-  const { error } = await supabase
-    .from('professional_verificacoes')
-    .update({ status: 'aprovado', reviewed_by: adminId, reviewed_at: new Date().toISOString(), motivo_rejeicao: null })
-    .eq('id', id);
-  if (error) throw error;
-}
-
-export async function rejeitarVerificacao(id: string, adminId: string, motivo: string): Promise<void> {
-  const { error } = await supabase
-    .from('professional_verificacoes')
-    .update({ status: 'rejeitado', reviewed_by: adminId, reviewed_at: new Date().toISOString(), motivo_rejeicao: motivo })
-    .eq('id', id);
-  if (error) throw error;
 }

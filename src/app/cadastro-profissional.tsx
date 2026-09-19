@@ -1,33 +1,35 @@
 import * as DocumentPicker from 'expo-document-picker';
 import { useRouter } from 'expo-router';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { Body, Button, Caption, Card, Field, Pill, Screen, SectionTitle } from '@/components/ui';
 import { signUp } from '@/services/authService';
-import { cadastrarProfissional, uploadDocumentoVerificacao } from '@/services/verificacaoService';
+import {
+  cadastrarProfissional,
+  listarProfissoes,
+  uploadDocumentoVerificacao,
+  type Profissao,
+} from '@/services/verificacaoService';
 import { Palette, Spacing } from '@/theme';
 
 /**
  * Cadastro de profissional (§0, 04/set): "não podemos abrir isso pra qualquer um se
- * cadastrar" — CREF/CRN não têm API pública de verificação no Brasil, então o cadastro cria
+ * cadastrar" — conselhos profissionais não têm API pública de verificação no Brasil, então o cadastro cria
  * conta liberada na hora (Painel/Leads/Planos funcionam), mas com verificação humana
  * pendente — banner visível até um admin conferir e aprovar. Rota pública, top-level (fora
  * de `/pro`), whitelisted em `src/app/_layout.tsx` igual à rota `/convite`.
  */
 
-const ESPECIALIDADES = [
-  { valor: 'personal_trainer', label: 'Educador físico (CREF)' },
-  { valor: 'nutricionista', label: 'Nutricionista (CRN)' },
-];
-
+/** Profissões vêm do catálogo `profissoes` (19/set): abrir uma nova é ligar `ativo` no banco. */
 export default function CadastroProfissionalScreen() {
   const router = useRouter();
 
   const [nome, setNome] = useState('');
   const [email, setEmail] = useState('');
   const [senha, setSenha] = useState('');
-  const [especialidade, setEspecialidade] = useState<string | null>(null);
+  const [profissoes, setProfissoes] = useState<Profissao[]>([]);
+  const [profissao, setProfissao] = useState<Profissao | null>(null);
   const [cpf, setCpf] = useState('');
   const [numeroRegistro, setNumeroRegistro] = useState('');
   const [ufRegistro, setUfRegistro] = useState('');
@@ -36,6 +38,10 @@ export default function CadastroProfissionalScreen() {
   const [enviando, setEnviando] = useState(false);
   const [concluido, setConcluido] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
+
+  useEffect(() => {
+    listarProfissoes().then(setProfissoes);
+  }, []);
 
   async function escolherDocumento() {
     const resultado = await DocumentPicker.getDocumentAsync({
@@ -48,8 +54,8 @@ export default function CadastroProfissionalScreen() {
   }
 
   async function cadastrar() {
-    if (!nome.trim() || !email.trim() || !senha || !especialidade) {
-      setErro('Preenche nome, e-mail, senha e escolhe a especialidade.');
+    if (!nome.trim() || !email.trim() || !senha || !profissao) {
+      setErro('Preenche nome, e-mail, senha e escolhe a sua profissão.');
       return;
     }
     if (senha.length < 8) {
@@ -76,10 +82,11 @@ export default function CadastroProfissionalScreen() {
         setErro('Conta criada — confirme seu e-mail e depois entre normalmente pra concluir.');
         return;
       }
-      const documentoPath = await uploadDocumentoVerificacao(user.id, documento);
+      const documentoPath = await uploadDocumentoVerificacao(user.id, documento, profissao.codigo);
       const ok = await cadastrarProfissional({
         nome: nome.trim(),
-        especialidade,
+        profissao: profissao.codigo,
+        especialidade: profissao.painel,
         cpf: cpf.replace(/\D/g, ''),
         numeroRegistro: numeroRegistro.trim(),
         ufRegistro: ufRegistro.trim().toUpperCase(),
@@ -123,9 +130,9 @@ export default function CadastroProfissionalScreen() {
       voltar>
       <Card>
         <Caption>
-          Pra manter a confiança de quem usa o app, todo profissional passa por verificação
-          manual do CREF/CRN antes de aparecer como verificado. Sua conta já funciona enquanto
-          isso — é só uma etapa de confiança, não um bloqueio.
+          Seu registro no conselho passa por conferência manual e, aprovado, vira o selo de
+          verificado no seu perfil. Sua conta já funciona enquanto isso: é uma etapa de
+          confiança, não um bloqueio.
         </Caption>
       </Card>
 
@@ -148,14 +155,14 @@ export default function CadastroProfissionalScreen() {
       </Card>
 
       <Card>
-        <SectionTitle>Especialidade</SectionTitle>
+        <SectionTitle>Profissão</SectionTitle>
         <View style={styles.pills}>
-          {ESPECIALIDADES.map((e) => (
+          {profissoes.map((p) => (
             <Pill
-              key={e.valor}
-              label={e.label}
-              active={especialidade === e.valor}
-              onPress={() => setEspecialidade(e.valor)}
+              key={p.codigo}
+              label={p.conselhoSigla ? `${p.nome} (${p.conselhoSigla})` : p.nome}
+              active={profissao?.codigo === p.codigo}
+              onPress={() => setProfissao(p)}
             />
           ))}
         </View>
@@ -164,7 +171,7 @@ export default function CadastroProfissionalScreen() {
       <Card>
         <SectionTitle>Registro no conselho</SectionTitle>
         <Field
-          label="Número do CREF/CRN"
+          label={profissao?.conselhoSigla ? `Número do ${profissao.conselhoSigla}` : 'Número do registro'}
           value={numeroRegistro}
           onChangeText={setNumeroRegistro}
           placeholder="Ex.: 012345-G"

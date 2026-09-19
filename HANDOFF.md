@@ -1,14 +1,13 @@
 # Vytra — Handoff
 
 > Documento de contexto para replicar o estado do projeto em outro chat.
-> Última atualização: 19/Setembro/2026 — §49 a §57: biblioteca de ilustrações diversas, botão
-> de voltar em toda tela de push, máscara de data/hora + calendário de agendamento, reenvio de
-> anamnese pedido pelo profissional, galeria de fotos de check-in (ampliáveis) com análise
-> automática por IA (Claude Sonnet — nova pendência de LGPD, foto de corpo é dado mais sensível
-> que o texto da anamnese, ver §56), e do lado do aluno: timer de descanso, histórico de treino
-> em modal, trava biométrica de reabertura e persistência semanal em %. Guilherme criou as
-> primeiras contas de teste (treinador e nutricionista) pra validação ponta a ponta, ainda em
-> andamento.
+> Última atualização: 19/Setembro/2026 — §59: foto opcional na anamnese + autosave em tempo real
+> (rascunho no servidor, indicador animado com o mark da Vytra), migração aplicada em produção,
+> código no disco sem commit. Antes disso, §58: catálogo de profissões + registros 1:N por
+> profissional (migração aplicada em produção, código no disco sem commit, deploy pendente, ver
+> checklist no fim do §58) e pasta local
+> renomeada para `~/Developer/vytra`. Antes disso, §49 a §57 (ilustrações, voltar em push,
+> máscara de data, reenvio de anamnese, fotos de check-in com IA, ajustes de treino do aluno).
 
 > **Fonte canônica:** este arquivo, na raiz do repositório. Todo agente (Codex ou Claude) deve lê-lo antes de alterar o projeto e atualizá-lo ao concluir mudanças relevantes, decisões, migrações, configuração de infraestrutura ou bloqueios.
 
@@ -199,7 +198,7 @@ Apple Watch virar core, dá pra fazer via módulo nativo sem trocar de stack.
 | App scheme (deep link) | `apptreino://` |
 | Bundle iOS/Android | não definido ainda |
 | Repo git | `github.com/guipasquetti/treino-tassis` (público) |
-| Pasta local | `/Users/guilhermepasquetti/Developer/App Treino` |
+| Pasta local | `/Users/guilhermepasquetti/Developer/vytra` (renomeada de `App Treino` em 19/set; só a pasta, slug/URL/repo não mudaram) |
 | **App no ar (web)** | **https://app-treino.expo.app** — EAS Hosting, produção |
 | EAS project | `@guipasquetti/app-treino` (`f37244c8-045f-4fff-89de-ecf05f7872ce`) |
 
@@ -4214,3 +4213,162 @@ sessão/pasta, `git log` já reflete isso — não precisa recommitar.
 --yes`. Plugin novo `expo-local-authentication` no `app.json` não afetou o export web. Bundle
 `entry-7325104fd121c17464782869e8d1c3f5.js`, conferido por `curl` (body, não só status) nos
 dois: `app-treino.expo.app` e `app.vytraoficial.com.br`, hash igual, ambos 200.
+
+## 58. Catálogo de profissões e registros 1:N + pasta renomeada (19/set)
+
+✅ **Pedido do Guilherme:** CRN/CREF fixos limitavam a Vytra; a plataforma vai abrir para
+outras profissões (fisioterapia primeiro). Decisão: abrir profissão nova tem que ser dado, não
+migração. Complementa §45 a §48 (selo, `tipo_registro`, declaração de treino).
+
+- **Migração** [`20260919_catalogo_profissoes_registros.sql`](supabase/migrations/20260919_catalogo_profissoes_registros.sql),
+  **aplicada em produção** (19/set, registrada como `catalogo_profissoes_registros`), testada antes
+  num Postgres 16 local com stub do schema (backfill, RLS, RPCs, chamada antiga de 7 args).
+  - `profissoes` (catálogo): `codigo`, `nome`, `sigla_selo` (NT/EF/FT, mantém a decisão de sigla
+    do §47), `conselho_sigla`, `url_consulta` (link do admin), `modulos` (`dieta`/`treino`),
+    `painel` (valor gravado em `professionals.especialidade`), `ativo`. Leitura pública (anon
+    também, o cadastro começa sem sessão); escrita só admin.
+  - Seed: nutrição (CRN, dieta) e educação física (CREF, treino) ativas. **Fisioterapia
+    (CREFITO) cadastrada inativa e sem módulos**: decisão pendente do Guilherme/Tassis sobre o
+    que fisioterapeuta pode prescrever no app. Ligar = `update profissoes set ativo = true, modulos = ...`.
+  - `professional_registros` (1:N, único por profissional+profissão): número, UF, documento,
+    status próprio. RLS só leitura (dono ou admin); escrita **só por RPC** SECURITY DEFINER:
+    `solicitar_registro` (upsert, volta só aquele registro pra `pendente`, valida que o
+    documento está na pasta do próprio uid), `revisar_registro` (admin; aprovar o 1º aprova a
+    conta; rejeitar só mexe na conta se não sobrar registro aprovado), `atualizar_minha_bio`
+    (bio deixa de reabrir verificação).
+  - Backfill: o único registro existente (Tassis, CRN aprovado) virou `nutricao` aprovado.
+  - `obter_selo_profissionais` ganhou `areas text[]` (siglas das áreas aprovadas);
+    `verificado` passa a ser "tem registro aprovado". Colunas antigas mantidas.
+  - `cadastrar_profissional` ganhou `p_profissao` (default null → deriva da especialidade como
+    antes), então o app antigo segue funcionando. Também grava em `professional_registros`.
+  - `declaracoes_profissional.tipo` aceita `treino_sem_registro` além do histórico `treino_sem_cref`.
+  - Lente §0: revoke explícito de `anon` nas 5 funções; conferido em `routine_privileges` (só
+    `authenticated`) e `get_advisors(security)` sem achado novo. CPF/número/documento seguem
+    invisíveis pro paciente.
+- **App** (aplicado no repo em 19/set, **deploy pendente**): cadastro lista profissões do
+  catálogo; `pro/cadastro-editar` virou "Registros e bio" (lista de registros com status,
+  somar/atualizar um registro sem derrubar os outros, bio salva à parte); `admin.tsx` revisa
+  por registro com link do catálogo; selo mostra `rotuloSelo(areas)` ("NT · EF"); `planos.tsx`
+  checa se algum registro não rejeitado cobre `treino` via catálogo (`obterModulosCobertos`) em
+  vez de `tipoRegistro === 'CREF'`. `tsc` limpo (conferido na nuvem contra os arquivos do disco;
+  o único erro era `expo-local-authentication` ausente lá, não aqui). **Não testado logado.**
+- ⚠️ **Janela de transição:** até o deploy, o app no ar ainda edita cadastro direto em
+  `professional_verificacoes`; uma alteração feita nesse intervalo não chega em
+  `professional_registros`. Só existe um profissional (Tassis), risco baixo. Fazer o deploy
+  antes de liberar novos cadastros.
+- **Pasta local renomeada** de `~/Developer/App Treino` para `~/Developer/vytra` (Guilherme,
+  19/set). Nada no código dependia do caminho; só a tabela do §4 foi atualizada. Slug EAS
+  `app-treino`, URL `app-treino.expo.app` e repo `treino-tassis` **não mudaram** (seguem o
+  protocolo do §17).
+- **Marketing:** primeiro lote de posts do Instagram salvo em
+  `marketing/instagram/lancamento-01/` (12 posts, 23 imagens, divididos por público:
+  profissional, paciente, os dois), com `legendas-e-plano.md`. Direção registrada pelo
+  Guilherme: a Vytra se vende primeiro ao profissional; o paciente chega por ele. Plano de
+  tráfego (dois funis: profissional pago, paciente via Collab com o profissional) e ordem de
+  publicação no `legendas-e-plano.md` dessa pasta, não repetidos aqui.
+  - Regra de comunicação sobre registro (Guilherme, 19/set): **validar quem tem registro, nunca
+    desqualificar quem não tem.** O post "Profissional de verdade" foi trocado por "Credencial
+    à vista". Nada de CRN/CREF em peça de marca, porque a lista de profissões vai crescer.
+  - Não prometer em peça o que ainda não existe: cobrança automática (bloqueada por CNPJ) e
+    "sua marca" (white-label) ficaram fora de propósito.
+
+### ⏭️ Pendente do §58 (nesta ordem)
+
+Os arquivos foram gravados no disco pelo Claude via bridge, mas o shell remoto falhou, então
+nada disso rodou no Mac:
+
+1. ✅ `npx tsc --noEmit` no Mac e deploy conjunto concluídos em 19/set (detalhes e hash no §59).
+2. Commit dos arquivos do §58 + `marketing/`.
+3. Teste logado: Tassis abre "Registros e bio" e vê o CRN verificado; paciente vê o selo "NT";
+   admin aprova um registro de teste.
+4. Decidir com o Tassis os módulos da fisioterapia antes de ativar no catálogo.
+
+## 59. Foto opcional na anamnese + autosave em tempo real (19/set)
+
+✅ **Pedido do Guilherme:** opção de anexar foto já na anamnese, e salvamento automático a cada
+campo respondido (pro paciente não perder resposta se preencher em etapas ou trocar de
+aparelho), com um ícone animado do mark da Vytra indicando "salvando" em tempo real.
+
+⚠️ **Nota pra quem reabrir esta sessão/pasta:** encontrei o §58 (catálogo de profissões) já no
+disco, sem commit, enquanto trabalhava nisto na mesma pasta — mesmo cenário de concorrência que
+o topo deste arquivo avisa desde 09/set. Não toquei nos arquivos do §58; o único arquivo que os
+dois trabalhos compartilham é `database.types.ts`, e resolvi isso rodando
+`generate_typescript_types` (Supabase MCP) DEPOIS de aplicar minha migração — o schema já tinha
+as duas migrações aplicadas (a do §58 e a minha), então o arquivo gerado tem as duas mudanças
+juntas, nenhuma foi perdida (conferido por `grep` no arquivo final: `profissoes`,
+`professional_registros`, `anamnese_rascunho` e `foto_path` aparecem todos). `npx tsc --noEmit`
+e `npx eslint .` rodados no repo inteiro (as duas rodadas de mudança juntas) — limpos, só
+sobraram os erros/warnings pré-existentes de antes de qualquer uma das duas sessões (`planos.tsx`,
+`perfil-screen.tsx`, `lista-compras.tsx`, as edge functions com import `npm:`). **Não commitei
+nada** — nem o §58 nem esta seção — porque não foi pedido; fica pro Guilherme decidir se quer
+um commit por rodada ou tudo junto.
+
+- **Migração** [`20260919_072647_anamnese_foto_rascunho.sql`](supabase/migrations/20260919_072647_anamnese_foto_rascunho.sql),
+  **aplicada em produção**:
+  - `anamnese.foto_path text` (nullable, aditivo) — a foto em si.
+  - Bucket privado novo `fotos-anamnese`, mesmo padrão de `fotos-checkin` (§13/§56): caminho
+    sempre prefixado pelo uid do paciente, leitura restrita a ele mesmo e ao profissional
+    vinculado (`is_professional_of`), nunca público. **Sem análise por IA** — não foi pedido, é
+    só anexo pro profissional ver (lente LGPD do §0: foto de corpo é dado mais sensível que
+    texto, não cria superfície além do estritamente necessário).
+  - Tabela nova `anamnese_rascunho` (`client_id` PK, `respostas jsonb`, `plano_id`, `foto_path`,
+    `updated_at`), RLS só o próprio paciente (`client_id = auth.uid()`, mesmo padrão de
+    `workout_drafts`). **Não podia reaproveitar a tabela `anamnese` final**: o gate de
+    onboarding (`possuiAnamnese()` em `onboardingService.ts`, usado por `aluno/_layout.tsx`)
+    libera o paciente pras abas do app só checando se a LINHA existe — sem exigir campo nenhum
+    preenchido (decisão de produto já tomada: "sem campo obrigatório"). Se o autosave escrevesse
+    direto em `anamnese`, a primeira letra digitada já teria liberado o paciente, pulando a
+    escolha do plano. Por isso rascunho é tabela própria, e `submeter_anamnese_autenticado`
+    apaga a linha do rascunho ao concluir o envio de verdade.
+  - `submeter_anamnese_autenticado` ganhou `p_foto_path text default null` — **achado durante a
+    própria migração**: `create or replace function` com uma assinatura nova (parâmetro a mais)
+    cria um OVERLOAD, não substitui a função; a versão antiga de 2 parâmetros ficou reachable
+    por engano (apareceu no `get_advisors(security)` logo depois de aplicar). Corrigido com
+    `drop function if exists public.submeter_anamnese_autenticado(jsonb, uuid)` numa segunda
+    migração. `get_advisors(security)` depois: sem achado novo além do que já era aceito no §0.
+  - `generate_typescript_types` rodado depois de tudo aplicado — `database.types.ts` atualizado.
+- **Serviços**: `anamneseService.ts` ganhou `uploadFotoAnamnese`/`obterUrlFotoAnamnese` (mesmo
+  padrão de `checkinService.ts`) e `obterAnamnese` agora devolve `fotoPath`.
+  `onboardingService.ts` ganhou `obterRascunhoAnamnese`/`salvarRascunhoAnamnese` (rascunho no
+  servidor) e `submeterAnamneseEPlano` ganhou o parâmetro `fotoPath`.
+- **Componente novo** [`save-indicator.tsx`](src/components/save-indicator.tsx): mark da Vytra
+  (`VytraMark`, PNG existente — não criei asset novo) pulsando com `Animated` (API nativa do RN,
+  não `react-native-reanimated`, que está instalado mas sem uso no app — não precisava de
+  worklet pra um loop de escala) enquanto salva, assenta em "Salvo" por 1,5s e some. Quem chama
+  controla a máquina de estados; o componente só anima o que recebe.
+- **`AnamneseFoto`** (novo, em [`onboarding-anamnese.tsx`](src/components/onboarding-anamnese.tsx),
+  ao lado de `AnamneseCampos`): anexo simples via câmera ou galeria (`expo-image-picker`, mesmo
+  padrão do `checkin-flow.tsx`, sem as silhuetas-guia da `CameraGuiada` — essas existem pra
+  comparar ângulo entre check-ins, não fazem sentido aqui), preview ampliável (`FotoAmpliavel`,
+  já existia em `ui/index.tsx`). Compartilhado pelas 3 telas que renderizam `AnamneseCampos`:
+  - `OnboardingAnamnese`: rascunho carrega do SERVIDOR primeiro (cobre trocar de aparelho); se
+    falhar (offline, sessão ainda não pronta), cai pro rascunho local em `AsyncStorage` que já
+    existia (§49) — os dois convivem, local cobre perda de rede no meio da digitação, servidor
+    cobre trocar de aparelho. Autosave debounced (400ms) grava nos dois em paralelo.
+  - `aluno/anamnese.tsx` (reedição): sem rascunho — a anamnese já existe, autosave (debounce
+    800ms) grava direto na RPC final (`planoId = null`, não mexe em `subscriptions`); o botão
+    "Salvar" continua existindo só pra fechar a tela de propósito.
+  - `pro/aluno/[id]/anamnese.tsx` (revisão do profissional): `AnamneseFoto` em modo
+    `somenteLeitura` — só visualiza a foto que o paciente mandou, nunca troca por conta própria.
+    `salvarAnamneseComoProfissional` não inclui `foto_path` no `upsert`, então salvar como
+    profissional não apaga a foto do paciente (upsert do supabase-js só toca as colunas listadas).
+- **Testado**: `npx tsc --noEmit` e `npx eslint .` limpos (ver nota de concorrência acima).
+  Smoke test no preview web (`expo start --web`, servidor manual — o `preview_start` do Browser
+  pane ainda apontava pro caminho antigo `~/Developer/App Treino` por causa do rename do §58,
+  contornado abrindo direto em `http://localhost:8081`): bundle sem erro, tela de login renderiza
+  normal, sem erro no console. **Não testado logado com paciente real** — mesma regra de sempre
+  (nunca senha de conta nenhuma digitada por agente), e sem credencial de teste disponível nesta
+  sessão.
+- ✅ **Deploy publicado (19/set, urgência de envio da anamnese):** o paciente recebia “Não
+  consegui enviar suas respostas” quando o access token local já havia vencido. A RPC retorna
+  `false` nesse caso (`auth.uid()` nulo); o código anterior usava `getSession()`, que só lê o
+  estado local e podia considerar esse token utilizável. `OnboardingAnamnese` agora chama
+  `refreshSession()` antes do envio: ou a RPC recebe um JWT renovado, ou o paciente vê a
+  orientação de entrar de novo, mantendo o rascunho. `npx tsc --noEmit` e `npx expo export
+  --platform web` passaram. Publicado em `app-treino.expo.app` (EAS Hosting) e
+  `app.vytraoficial.com.br` (Vercel); ambos servem o mesmo bundle
+  `entry-a7697d49355472dfaccef7467b5f89eb.js` (SHA-256
+  `9f8021937c8e929c4a940a050200de89c278c48b870f1a5b5ff569a6db29c0fd`).
+  A edge function `analyze-anamnese-photo` **não foi publicada**: ela enviaria foto sensível à
+  Anthropic e o sign-off LGPD registrado no §56 segue pendente. O commit das mudanças continua
+  pendente, pois o working tree também reúne §58 e §59.

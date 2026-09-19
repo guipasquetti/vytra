@@ -3,33 +3,28 @@ import { Linking, StyleSheet, View } from 'react-native';
 
 import { Button, Caption, Card, EmptyState, Field, Loading, Screen, SectionTitle } from '@/components/ui';
 import { formatarDataHora } from '@/models/domain';
-import { rotuloEspecialidade } from '@/services/solicitacoesService';
 import {
-  aprovarVerificacao,
-  listarVerificacoesPendentes,
+  listarRegistrosPendentes,
   obterUrlDocumento,
-  rejeitarVerificacao,
-  type SolicitacaoVerificacaoAdmin,
+  revisarRegistro,
+  type SolicitacaoRegistroAdmin,
 } from '@/services/verificacaoService';
 import { useAuthStore } from '@/store/authStore';
 import { Palette, Spacing } from '@/theme';
 
-const LINKS_CONSELHO: Record<string, string> = {
-  CREF: 'https://www.confef.org.br',
-  CRN: 'https://www.cfn.org.br',
-};
-
 /**
  * Fila de verificação de profissionais (§0, 04/set) — só quem tem `profiles.is_admin = true`
  * usa isso (hoje, só o Guilherme). Não é papel formal (RBAC), é uma flag simples — ver
- * migração `20260904_cadastro_profissional_verificado.sql`.
+ * migração `20260904_cadastro_profissional_verificado.sql`. Desde 19/set a fila é por
+ * REGISTRO (`professional_registros`): um profissional pode somar outro conselho sem perder o
+ * selo do que já foi aprovado. O link de conferência vem do catálogo `profissoes`.
  */
 export default function AdminScreen() {
   const profile = useAuthStore((s) => s.profile);
-  const [solicitacoes, setSolicitacoes] = useState<SolicitacaoVerificacaoAdmin[] | null>(null);
+  const [solicitacoes, setSolicitacoes] = useState<SolicitacaoRegistroAdmin[] | null>(null);
 
   const carregar = useCallback(async () => {
-    setSolicitacoes(await listarVerificacoesPendentes());
+    setSolicitacoes(await listarRegistrosPendentes());
   }, []);
 
   useEffect(() => {
@@ -49,10 +44,10 @@ export default function AdminScreen() {
   if (solicitacoes === null) return <Loading />;
 
   return (
-    <Screen title="Verificações" subtitle="Profissionais aguardando aprovação" voltar>
+    <Screen title="Verificações" subtitle="Registros aguardando conferência" voltar>
       {solicitacoes.length ? (
         solicitacoes.map((s) => (
-          <SolicitacaoCard key={s.id} solicitacao={s} adminId={profile.id} onMudou={carregar} />
+          <SolicitacaoCard key={s.id} solicitacao={s} onMudou={carregar} />
         ))
       ) : (
         <EmptyState text="Nenhuma verificação pendente." />
@@ -63,11 +58,9 @@ export default function AdminScreen() {
 
 function SolicitacaoCard({
   solicitacao,
-  adminId,
   onMudou,
 }: {
-  solicitacao: SolicitacaoVerificacaoAdmin;
-  adminId: string;
+  solicitacao: SolicitacaoRegistroAdmin;
   onMudou: () => Promise<void>;
 }) {
   const [urlDocumento, setUrlDocumento] = useState<string | null>(null);
@@ -84,7 +77,7 @@ function SolicitacaoCard({
   async function aprovar() {
     setProcessando(true);
     try {
-      await aprovarVerificacao(solicitacao.id, adminId);
+      await revisarRegistro(solicitacao.id, true);
       await onMudou();
     } finally {
       setProcessando(false);
@@ -95,7 +88,7 @@ function SolicitacaoCard({
     if (!motivo.trim()) return;
     setProcessando(true);
     try {
-      await rejeitarVerificacao(solicitacao.id, adminId, motivo.trim());
+      await revisarRegistro(solicitacao.id, false, motivo.trim());
       await onMudou();
     } finally {
       setProcessando(false);
@@ -106,11 +99,14 @@ function SolicitacaoCard({
     <Card>
       <SectionTitle>{solicitacao.professionalNome}</SectionTitle>
       <Caption color={Palette.text}>{solicitacao.professionalEmail}</Caption>
-      <Caption>{rotuloEspecialidade(solicitacao.especialidade)}</Caption>
+      <Caption>{solicitacao.profissaoNome}</Caption>
       <Caption color={Palette.text}>
-        Registro: {solicitacao.tipoRegistro ? `${solicitacao.tipoRegistro} ` : ''}
-        {solicitacao.numeroRegistro}/{solicitacao.ufRegistro}
+        Registro: {solicitacao.conselhoSigla ? `${solicitacao.conselhoSigla} ` : ''}
+        {solicitacao.numero}/{solicitacao.uf}
       </Caption>
+      {solicitacao.areasAprovadas.length ? (
+        <Caption>Já verificado em: {solicitacao.areasAprovadas.join(', ')}</Caption>
+      ) : null}
       {solicitacao.cpf ? <Caption>CPF: {solicitacao.cpf}</Caption> : null}
       {solicitacao.bio ? <Caption>{solicitacao.bio}</Caption> : null}
       <Caption>Enviado em {formatarDataHora(solicitacao.createdAt)}</Caption>
@@ -119,11 +115,11 @@ function SolicitacaoCard({
         {urlDocumento ? (
           <Button label="Ver documento" variant="ghost" onPress={() => Linking.openURL(urlDocumento)} />
         ) : null}
-        {solicitacao.tipoRegistro && LINKS_CONSELHO[solicitacao.tipoRegistro] ? (
+        {solicitacao.urlConsulta ? (
           <Button
             label="Conferir no site do conselho"
             variant="ghost"
-            onPress={() => Linking.openURL(LINKS_CONSELHO[solicitacao.tipoRegistro!])}
+            onPress={() => Linking.openURL(solicitacao.urlConsulta!)}
           />
         ) : null}
       </View>

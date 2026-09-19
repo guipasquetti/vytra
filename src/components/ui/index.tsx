@@ -386,11 +386,10 @@ export function RemoveButton({ onPress, label = 'Remover' }: { onPress: () => vo
 
 /**
  * Selo de profissional verificado — mesmo espírito do badge azul de contas verificadas, só
- * que na cor da marca (`Palette.accent`, o verde-menta "Sinal Vital"). Aparece só quando
- * `professional_verificacoes.status === 'aprovado'` (via RPC `obter_selo_profissionais` pro
- * paciente, ou `obterMinhaVerificacao` pro próprio profissional — nunca inventado no client).
- * `label` (ex.: "Nutricionista", via `rotuloTipoRegistro`) é opcional — sem ele, só o ícone
- * redondo, pra contextos compactos onde o nome do conselho já está óbvio por outro lado.
+ * que na cor da marca (`Palette.accent`, o verde-menta "Sinal Vital"). Aparece quando há ao
+ * menos um registro aprovado em `professional_registros` (via RPC `obter_selo_profissionais`,
+ * nunca inventado no client). `label` são as siglas das áreas verificadas (ex.: "NT · EF",
+ * via `rotuloSelo`), nunca a sigla do conselho. Sem ele, só o ícone redondo.
  */
 export function SeloVerificado({ label, size = 16 }: { label?: string | null; size?: number }) {
   const icone = (

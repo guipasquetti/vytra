@@ -86,8 +86,10 @@ export type ProfissionalVinculado = {
   status: string;
   verificado: boolean;
   bio: string | null;
-  /** CREF/CRN do registro verificado — não confundir com `especialidade` (§45 do handoff). */
+  /** CREF/CRN do registro verificado — legado, o selo usa `areas` desde 19/set. */
   tipoRegistro: string | null;
+  /** Siglas das áreas com registro aprovado (catálogo `profissoes`), ex.: ["NT", "EF"]. */
+  areas: string[];
   incluiTreino: boolean;
   incluiDieta: boolean;
 };
@@ -130,6 +132,7 @@ export async function listarMeusProfissionais(clientId: string): Promise<Profiss
       verificado: selos.get(sub.professional_id)?.verificado ?? false,
       bio: selos.get(sub.professional_id)?.bio ?? null,
       tipoRegistro: selos.get(sub.professional_id)?.tipoRegistro ?? null,
+      areas: selos.get(sub.professional_id)?.areas ?? [],
       incluiTreino: plano?.inclui_treino ?? false,
       incluiDieta: plano?.inclui_dieta ?? false,
     };

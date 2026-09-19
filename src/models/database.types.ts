@@ -56,6 +56,41 @@ export type Database = {
         }
         Relationships: []
       }
+      analise_foto_anamnese: {
+        Row: {
+          client_id: string
+          created_at: string
+          foto_path: string
+          indicadores: Json
+          resumo: string
+          updated_at: string
+        }
+        Insert: {
+          client_id: string
+          created_at?: string
+          foto_path: string
+          indicadores?: Json
+          resumo: string
+          updated_at?: string
+        }
+        Update: {
+          client_id?: string
+          created_at?: string
+          foto_path?: string
+          indicadores?: Json
+          resumo?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "analise_foto_anamnese_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       analises_fotos_checkin: {
         Row: {
           checkin_anterior_id: string | null
@@ -114,6 +149,7 @@ export type Database = {
           cirurgias: string
           client_id: string
           condicoes_medicas: string
+          foto_path: string | null
           historico_familiar: string
           lesoes_dores: string
           medicamentos: string
@@ -130,6 +166,7 @@ export type Database = {
           cirurgias?: string
           client_id: string
           condicoes_medicas?: string
+          foto_path?: string | null
           historico_familiar?: string
           lesoes_dores?: string
           medicamentos?: string
@@ -146,6 +183,7 @@ export type Database = {
           cirurgias?: string
           client_id?: string
           condicoes_medicas?: string
+          foto_path?: string | null
           historico_familiar?: string
           lesoes_dores?: string
           medicamentos?: string
@@ -160,6 +198,38 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "anamnese_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      anamnese_rascunho: {
+        Row: {
+          client_id: string
+          foto_path: string | null
+          plano_id: string | null
+          respostas: Json
+          updated_at: string
+        }
+        Insert: {
+          client_id: string
+          foto_path?: string | null
+          plano_id?: string | null
+          respostas?: Json
+          updated_at?: string
+        }
+        Update: {
+          client_id?: string
+          foto_path?: string | null
+          plano_id?: string | null
+          respostas?: Json
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "anamnese_rascunho_client_id_fkey"
             columns: ["client_id"]
             isOneToOne: true
             referencedRelation: "profiles"
@@ -873,6 +943,73 @@ export type Database = {
           },
         ]
       }
+      professional_registros: {
+        Row: {
+          created_at: string
+          documento_path: string | null
+          id: string
+          motivo_rejeicao: string | null
+          numero: string
+          professional_id: string
+          profissao: string
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: string
+          uf: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          documento_path?: string | null
+          id?: string
+          motivo_rejeicao?: string | null
+          numero: string
+          professional_id: string
+          profissao: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          uf: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          documento_path?: string | null
+          id?: string
+          motivo_rejeicao?: string | null
+          numero?: string
+          professional_id?: string
+          profissao?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          uf?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "professional_registros_professional_id_fkey"
+            columns: ["professional_id"]
+            isOneToOne: false
+            referencedRelation: "professionals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "professional_registros_profissao_fkey"
+            columns: ["profissao"]
+            isOneToOne: false
+            referencedRelation: "profissoes"
+            referencedColumns: ["codigo"]
+          },
+          {
+            foreignKeyName: "professional_registros_reviewed_by_fkey"
+            columns: ["reviewed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       professional_verificacoes: {
         Row: {
           bio: string | null
@@ -1010,6 +1147,48 @@ export type Database = {
           role?: string
           sexo?: string | null
           telefone?: string | null
+        }
+        Relationships: []
+      }
+      profissoes: {
+        Row: {
+          ativo: boolean
+          codigo: string
+          conselho_nome: string | null
+          conselho_sigla: string | null
+          created_at: string
+          modulos: string[]
+          nome: string
+          ordem: number
+          painel: string
+          sigla_selo: string
+          url_consulta: string | null
+        }
+        Insert: {
+          ativo?: boolean
+          codigo: string
+          conselho_nome?: string | null
+          conselho_sigla?: string | null
+          created_at?: string
+          modulos?: string[]
+          nome: string
+          ordem?: number
+          painel?: string
+          sigla_selo: string
+          url_consulta?: string | null
+        }
+        Update: {
+          ativo?: boolean
+          codigo?: string
+          conselho_nome?: string | null
+          conselho_sigla?: string | null
+          created_at?: string
+          modulos?: string[]
+          nome?: string
+          ordem?: number
+          painel?: string
+          sigla_selo?: string
+          url_consulta?: string | null
         }
         Relationships: []
       }
@@ -1201,6 +1380,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      atualizar_minha_bio: { Args: { p_bio: string }; Returns: undefined }
       cadastrar_profissional: {
         Args: {
           p_bio?: string
@@ -1209,6 +1389,7 @@ export type Database = {
           p_especialidade: string
           p_nome: string
           p_numero_registro: string
+          p_profissao?: string
           p_uf_registro: string
         }
         Returns: boolean
@@ -1234,6 +1415,7 @@ export type Database = {
       obter_selo_profissionais: {
         Args: { p_professional_ids: string[] }
         Returns: {
+          areas: string[]
           bio: string
           professional_id: string
           tipo_registro: string
@@ -1253,12 +1435,25 @@ export type Database = {
       pode_ler_foto_checkin: { Args: { p_caminho: string }; Returns: boolean }
       recusar_convite: { Args: { p_token: string }; Returns: boolean }
       reenviar_convite: { Args: { p_convite_id: string }; Returns: string }
+      revisar_registro: {
+        Args: { p_aprovar: boolean; p_motivo?: string; p_registro_id: string }
+        Returns: undefined
+      }
+      solicitar_registro: {
+        Args: {
+          p_documento_path?: string
+          p_numero: string
+          p_profissao: string
+          p_uf: string
+        }
+        Returns: string
+      }
       submeter_anamnese: {
         Args: { p_respostas: Json; p_token: string }
         Returns: boolean
       }
       submeter_anamnese_autenticado: {
-        Args: { p_plano_id?: string; p_respostas: Json }
+        Args: { p_foto_path?: string; p_plano_id?: string; p_respostas: Json }
         Returns: boolean
       }
     }
