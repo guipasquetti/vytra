@@ -4395,3 +4395,6 @@ um commit por rodada ou tudo junto.
 - Verificado: `npx tsc --noEmit` e `npx expo export --platform web` passam. O lint do repo
   continua falhando por regras novas aplicadas a efeitos antigos, em telas sem relação com esta
   mudança; o lint não apontou erro novo desta seção.
+- **Publicado e commitado:** `5657599 feat: estrutura campos da anamnese`, enviado para
+  `origin/main`. Publicado via EAS Hosting e Vercel; `app-treino.expo.app` e
+  `app.vytraoficial.com.br` responderam HTTP 200 após o deploy.
