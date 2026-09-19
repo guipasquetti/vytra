@@ -4444,3 +4444,6 @@ que a pessoa alcance o obturador depois de se posicionar.
 - Implementado no único componente compartilhado `CameraGuiada`, portanto vale para as quatro
   poses da linha de base e para o check-in, sem nova permissão, serviço ou dado persistido.
 - Verificado: `npx tsc --noEmit`, `npx expo export --platform web` e `git diff --check` passam.
+- **Publicado e commitado:** `15c848c feat: adiciona timer na câmera guiada`, enviado para
+  `origin/main`. EAS Hosting e Vercel publicados; ambos os endereços públicos responderam HTTP
+  200 após o deploy.
