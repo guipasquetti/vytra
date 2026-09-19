@@ -219,10 +219,12 @@ export function AnamneseFoto({
 /** Linha de base visual: mesmas quatro poses e guia do check-in; paths ficam no JSON da anamnese. */
 export function LinhaBaseFotos({ clientId, respostas, onChange, somenteLeitura = false }: { clientId: string; respostas: RespostasAnamnese; onChange: (id: string, valor: string) => void; somenteLeitura?: boolean }) {
   const [camera, setCamera] = useState<AnguloFoto | null>(null);
+  const [abrirCamera, setAbrirCamera] = useState(false);
   const [consentiu, setConsentiu] = useState(Boolean(respostas.__consentimento_linha_base));
   const [urls, setUrls] = useState<Record<string, string>>({});
   const poses: { tipo: AnguloFoto; label: string }[] = [{ tipo: 'frente', label: 'Frente' }, { tipo: 'esquerdo', label: 'Perfil esquerdo' }, { tipo: 'direito', label: 'Perfil direito' }, { tipo: 'costas', label: 'Costas' }];
   useEffect(() => { Promise.all(poses.map(async ({ tipo }) => [tipo, await obterUrlFotoAnamnese(respostas[`__linha_base_${tipo}`] ?? '')] as const)).then((itens) => setUrls(Object.fromEntries(itens.filter(([, url]) => url)) as Record<string, string>)); }, [respostas]);
+  useEffect(() => { if (!somenteLeitura) supabase.from('consentimentos_imagem').select('revogado_em').eq('client_id', clientId).eq('versao', 'linha-base-v1').maybeSingle().then(({ data }) => { if (data && !data.revogado_em) setConsentiu(true); }); }, [clientId, somenteLeitura]);
   async function aceitar() {
     await supabase.from('consentimentos_imagem').upsert({ client_id: clientId, versao: 'linha-base-v1', texto_hash: 'vytra-linha-base-v1' }, { onConflict: 'client_id,versao' });
     onChange('__consentimento_linha_base', 'v1'); setConsentiu(true);
@@ -231,11 +233,12 @@ export function LinhaBaseFotos({ clientId, respostas, onChange, somenteLeitura =
     const caminho = await uploadFotoAnamnese(clientId, { ...arquivo, name: `${tipo}-${arquivo.name}` });
     onChange(`__linha_base_${tipo}`, caminho);
   }
+  async function galeria() { if (!camera) return; const r = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.8 }); if (!r.canceled && r.assets?.[0]) { const tipo = camera; setCamera(null); await salvar(tipo, { uri: r.assets[0].uri, name: r.assets[0].fileName ?? `${tipo}.jpg` }); } }
   return <Card><SectionTitle>Fotos de linha de base</SectionTitle>
     {!consentiu && !somenteLeitura ? <><Caption>Quatro fotos guiadas criam seu ponto de partida. Só você e seu profissional vinculado podem vê-las. Você pode revogar esse consentimento pela área Privacidade do app Vytra.</Caption><Button label="Aceitar e registrar consentimento" onPress={aceitar} /></> : null}
-    {consentiu || somenteLeitura ? <View style={styles.fotoBotoes}>{poses.map(({ tipo, label }) => urls[tipo] && somenteLeitura ? <FotoAmpliavel key={tipo} uri={urls[tipo]} width={100} height={140} /> : <Button key={tipo} label={respostas[`__linha_base_${tipo}`] ? `${label} registrada` : `Registrar ${label}`} variant="ghost" onPress={() => setCamera(tipo)} disabled={somenteLeitura} />)}</View> : null}
+    {consentiu || somenteLeitura ? <View style={styles.fotoBotoes}>{poses.map(({ tipo, label }) => urls[tipo] && somenteLeitura ? <FotoAmpliavel key={tipo} uri={urls[tipo]} width={100} height={140} /> : <Button key={tipo} label={respostas[`__linha_base_${tipo}`] ? `${label} registrada` : `Registrar ${label}`} variant="ghost" onPress={() => { setAbrirCamera(false); setCamera(tipo); }} disabled={somenteLeitura} />)}</View> : null}
     <Modal visible={Boolean(camera)} animationType="slide" onRequestClose={() => setCamera(null)}>
-      {camera ? <CameraGuiada tipo={camera} onCancelar={() => setCamera(null)} onFoto={async (arquivo) => { const tipo = camera; setCamera(null); await salvar(tipo, arquivo); }} /> : null}
+      {camera && abrirCamera ? <CameraGuiada tipo={camera} onCancelar={() => setCamera(null)} onFoto={async (arquivo) => { const tipo = camera; setCamera(null); await salvar(tipo, arquivo); }} /> : <Screen title="Adicionar foto" subtitle="Escolha como registrar esta pose" scroll={false}><Card><Button label="Tirar foto" onPress={() => setAbrirCamera(true)} /><Button label="Escolher da galeria" variant="ghost" onPress={galeria} /><Button label="Cancelar" variant="ghost" onPress={() => setCamera(null)} /></Card></Screen>}
     </Modal>
   </Card>;
 }
