@@ -4127,3 +4127,79 @@ pra paciente de verdade.
 - **Não testado de ponta a ponta** — depende de check-in real com foto, chave `ANTHROPIC_API_KEY`
   já configurada desde o §40. Não disparei a function de verdade nesta sessão (gastaria chamada
   real ao Sonnet sem paciente de teste ainda pronto); revisão foi só de código + `tsc`.
+- **Deploy publicado nos dois hosts (18/set)**: `npx expo export --platform web` → `npx eas
+  deploy --prod` → `npx vercel deploy dist --project vytra-app --prod --yes`. Vercel falhou 2x
+  com `fetch failed` (erro de rede da CLI, não do projeto) antes de passar na 3ª tentativa —
+  classe de falha diferente do atraso de cache já visto em `eas deploy` (§53/§55), aqui o
+  comando nem chegava a publicar. Bundle `entry-6dd9d14e5258f5b1e7f9c6a4d50ff5eb.js`, conferido
+  por `curl` (body, não só status) nos dois: `app-treino.expo.app` e `app.vytraoficial.com.br`,
+  hash igual, ambos 200.
+
+## 57. Quatro ajustes no fluxo de treino do aluno (18/set)
+
+✅ Pedido do Guilherme: timer de descanso, histórico do exercício em card à parte, trava
+biométrica de reabertura, e persistência semanal em percentual (em vez de "dias seguidos").
+Decisões fechadas por pergunta direta antes de implementar: frequência semanal vem de campo
+novo no plano (não do nº de dias do plano em si); biometria é trava de reabertura, a sessão do
+Supabase já persiste sozinha, não é login novo; timer inicia sozinho ao registrar série.
+
+⚠️ **LGPD**: a trava biométrica cobre acesso a dado de saúde sensível (anamnese, fotos de
+check-in, prontuário) tanto do aluno quanto do profissional (que vê dado de vários pacientes)
+— por isso vem **ligada por padrão** quando o aparelho tem biometria cadastrada, com opção de
+desligar no Perfil. Nenhuma das 4 mudanças cria superfície nova de dado nem muda RLS.
+
+- **Persistência semanal**: migração
+  [`20260918_174651_plans_treinos_semana.sql`](supabase/migrations/20260918_174651_plans_treinos_semana.sql)
+  — `plans.treinos_semana integer` nullable, sem default (plano sem o campo cai no streak
+  antigo, sem backfill). `get_advisors(security)` sem achado novo. Profissional preenche em
+  [`pro/aluno/[id]/index.tsx`](src/app/pro/aluno/%5Bid%5D/index.tsx) (card de Período/
+  Treinador). Nova `persistenciaSemanal()` em
+  [`workoutService.ts`](src/services/workoutService.ts): janela rolante de 7 dias terminando
+  hoje (não semana de calendário seg-dom) — não quebra/reinicia em dia sem sessão, é isso que
+  resolve o dia de descanso agendado "zerando o ciclo". [`aluno/index.tsx`](src/app/aluno/index.tsx)
+  mostra `%` quando o plano tem `treinos_semana`, senão mantém "dias seguidos" de sempre.
+  `streakTreino` continua existindo e é o que `pro/aluno/[id]/resumo.tsx` ainda usa (fora de
+  escopo desta rodada, não mudei a visão do profissional).
+- **Trava biométrica**: `expo-local-authentication` instalado (SDK 57, plugin em `app.json`
+  com string de permissão Face ID em português). Nova
+  [`src/lib/localAuthLock.ts`](src/lib/localAuthLock.ts) — separada de `supabase.ts` de
+  propósito (aquele `AppState` listener é só refresh de token). Preferência persistida via
+  `expo-secure-store` (`app-lock-enabled`); default automático na primeira leitura = ligado se
+  o aparelho tem biometria cadastrada. Novo
+  [`src/components/app-lock-gate.tsx`](src/components/app-lock-gate.tsx) — overlay renderizado
+  como irmão da `<Stack>` em [`_layout.tsx`](src/app/_layout.tsx), cobre aluno e profissional
+  com o mesmo gate; fail-closed enquanto resolve, sem lock nenhum na web (SecureStore/
+  biometria não fazem sentido lá). Toggle "Desbloquear com Face ID/digital" em
+  [`perfil-screen.tsx`](src/components/perfil-screen.tsx) (card "Segurança", só aparece se o
+  aparelho suporta), compartilhado entre aluno e profissional porque os dois só renderizam
+  `<PerfilScreen />`.
+- **Timer de descanso**: `Exercicio.descanso?: number` (segundos) novo em
+  [`domain.ts`](src/models/domain.ts) — aditivo, jsonb, sem migração. Profissional define por
+  exercício em `pro/aluno/[id]/index.tsx` (campo "Descanso (s)", vazio = 90s padrão). Em
+  [`aluno/treino.tsx`](src/app/aluno/treino.tsx), `DescansoTimer` dispara sozinho ao registrar
+  série (se ainda sobra série no exercício), baseado em timestamp (não contador — sobrevive a
+  ida pro background sem lógica extra), vibra ao zerar e passa a contar "+mm:ss" de atraso até
+  o aluno registrar a próxima. Sem persistência no banco — efêmero, não foi pedido reportar
+  isso pro profissional.
+- **Histórico em card à parte**: o card principal do exercício em `treino.tsx` só mostra o
+  resumo do último dia (já existia); o antigo bloco inline com as últimas 5 sessões virou
+  botão "Ver histórico completo" que abre `ModalHistorico` — gráfico de evolução (reusa
+  `GraficoPontos` tal como está, mesmo componente do gráfico de peso do Início, com a mesma
+  limitação conhecida de 12 pontos/sem eixo de data real) + lista completa sem cap de 5,
+  rolável dentro do modal.
+- `npx tsc --noEmit` e `eslint` limpos (só sobraram warnings/erros pré-existentes, nenhum
+  introduzido por esta mudança — conferido por diff antes de assumir isso). Testado no preview
+  web (`expo start --web`): bundle sem erro, tela de login renderiza normal, sem lock
+  aparecendo sem sessão (esperado). **Não testado ponta a ponta com paciente real logado** —
+  sem credencial de teste disponível nesta sessão pra abrir `aluno/treino.tsx` (timer/modal) e
+  `perfil.tsx` (toggle biométrico) de verdade; revisão foi código + tipos + smoke test de boot.
+
+**Nota do Claude pro Codex (19/set):** achei esta seção já escrita, mas ainda não commitada,
+enquanto eu tinha o §56 em andamento na mesma pasta — mesmo cenário do incidente de 09/set que
+o topo deste arquivo avisa. Não sobrescrevi nada: reli o disco antes de mexer, conferi
+`npx tsc --noEmit` limpo com as duas mudanças juntas, e commitei tudo (§56 + §57) num commit só
+a pedido do Guilherme, já que as duas rodadas não se tocam (arquivos diferentes, sem conflito de
+merge). Migração `20260918_174651_plans_treinos_semana.sql` já estava aplicada em produção
+quando conferi (`information_schema.columns`, coluna `treinos_semana` existe em `plans`) — não
+reapliquei, só commitei o arquivo pra ficar em sincronia com o banco. Se você reabrir esta
+sessão/pasta, `git log` já reflete isso — não precisa recommitar.

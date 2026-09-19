@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { Linking, StyleSheet, View } from 'react-native';
 
 import { CampoData } from '@/components/campo-data';
-import { Body, Button, Caption, Card, Field, Pill, Screen, SectionTitle, SeloVerificado } from '@/components/ui';
+import { Body, Button, Caption, Card, Field, Pill, Screen, SectionTitle, SeloVerificado, ToggleRow } from '@/components/ui';
 import { obterAnamnese } from '@/services/anamneseService';
 import { formatarDataHora } from '@/models/domain';
 import { listarAlunos, listarMeusProfissionais } from '@/services/professionalService';
@@ -12,6 +12,7 @@ import { rotuloEspecialidade } from '@/services/solicitacoesService';
 import { proximaTeleconsulta, type Teleconsulta } from '@/services/teleconsultaService';
 import { obterMinhaVerificacao, rotuloTipoRegistro, type VerificacaoProfissional } from '@/services/verificacaoService';
 import { supabase } from '@/lib/supabase';
+import { hardwareDisponivel, lerPreferenciaLock, salvarPreferenciaLock } from '@/lib/localAuthLock';
 import { useAuthStore } from '@/store/authStore';
 import { Palette, Spacing } from '@/theme';
 
@@ -50,6 +51,8 @@ export function PerfilScreen() {
   const [especialidade, setEspecialidade] = useState<string | null>(null);
   const [verificacao, setVerificacao] = useState<VerificacaoProfissional | null>(null);
   const [anamneseSolicitada, setAnamneseSolicitada] = useState(false);
+  const [suportaBiometria, setSuportaBiometria] = useState(false);
+  const [lockAtivado, setLockAtivado] = useState(false);
 
   const [editando, setEditando] = useState(false);
   const [nome, setNome] = useState('');
@@ -95,6 +98,19 @@ export function PerfilScreen() {
       obterAnamnese(user.id).then((a) => setAnamneseSolicitada(!!a?.solicitadaAtualizacaoEm));
     }
   }, [user?.id, isProfessional]);
+
+  // Reconfere a cada montagem — some da tela se o usuário desativar a biometria do aparelho.
+  useEffect(() => {
+    hardwareDisponivel().then((disponivel) => {
+      setSuportaBiometria(disponivel);
+      if (disponivel) lerPreferenciaLock().then(setLockAtivado);
+    });
+  }, []);
+
+  async function alternarLock(v: boolean) {
+    setLockAtivado(v);
+    await salvarPreferenciaLock(v);
+  }
 
   function iniciarEdicao() {
     setNome(profile?.nome ?? '');
@@ -289,6 +305,17 @@ export function PerfilScreen() {
       ) : (
         <Card>
           <Caption>{isProfessional ? 'Nenhum aluno vinculado.' : 'Nenhum profissional vinculado.'}</Caption>
+        </Card>
+      )}
+
+      {suportaBiometria && (
+        <Card>
+          <SectionTitle>Segurança</SectionTitle>
+          <ToggleRow
+            label="Desbloquear com Face ID/digital"
+            value={lockAtivado}
+            onValueChange={alternarLock}
+          />
         </Card>
       )}
 

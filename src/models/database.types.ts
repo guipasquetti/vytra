@@ -785,6 +785,7 @@ export type Database = {
           professional_id: string
           publicado: boolean
           treinador: string
+          treinos_semana: number | null
           updated_at: string
         }
         Insert: {
@@ -796,6 +797,7 @@ export type Database = {
           professional_id: string
           publicado?: boolean
           treinador?: string
+          treinos_semana?: number | null
           updated_at?: string
         }
         Update: {
@@ -807,6 +809,7 @@ export type Database = {
           professional_id?: string
           publicado?: boolean
           treinador?: string
+          treinos_semana?: number | null
           updated_at?: string
         }
         Relationships: [

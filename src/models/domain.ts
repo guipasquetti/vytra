@@ -29,6 +29,8 @@ export type Exercicio = {
   warm: string;
   /** Prescrição de feeder sets, ex.: "4 reps (2x)" ou "—". */
   feeder: string;
+  /** Descanso entre séries, em segundos. Sem valor, o app assume 90s. */
+  descanso?: number;
   nota?: string;
   /** Exercício medido em tempo (prancha), não em repetições. */
   tempo?: boolean;
@@ -455,6 +457,8 @@ export type PlanoEditavel = {
   publicado: boolean;
   /** Nasceu de geração automática por IA e ainda não passou por nenhum save do profissional. */
   geradoPorIa: boolean;
+  /** Treinos esperados por semana — `null` mantém o streak antigo de "dias seguidos". */
+  treinosSemana: number | null;
 };
 
 export function novoExercicio(): ExercicioEditavel {
@@ -527,6 +531,7 @@ export function prepararParaSalvar(plano: PlanoEditavel): DiaTreino[] {
       };
       if (ex.ombro) normalizado.ombro = true;
       if (ex.tempo) normalizado.tempo = true;
+      if (ex.descanso) normalizado.descanso = Number(ex.descanso);
       if (ex.nota?.trim()) normalizado.nota = ex.nota.trim();
       if (ex.video?.trim()) normalizado.video = ex.video.trim();
       return normalizado;
@@ -547,16 +552,25 @@ export function planoParaEdicao(
   treinador: string,
   publicado: boolean,
   geradoPorIa: boolean,
+  treinosSemana: number | null,
 ): PlanoEditavel {
   if (!dias.length) {
     // Plano novo nasce como rascunho — só fica visível pro aluno quando o profissional publicar.
-    return { periodo, treinador, dias: [novoDia([])], publicado: false, geradoPorIa: false };
+    return {
+      periodo,
+      treinador,
+      dias: [novoDia([])],
+      publicado: false,
+      geradoPorIa: false,
+      treinosSemana: null,
+    };
   }
   return {
     periodo,
     treinador,
     publicado,
     geradoPorIa,
+    treinosSemana,
     dias: dias.map((d) => ({
       ...d,
       desc: d.desc ?? '',

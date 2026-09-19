@@ -49,6 +49,7 @@ export async function salvarPlano(
       treinador: plano.treinador.trim(),
       dias,
       publicado: plano.publicado,
+      treinos_semana: plano.treinosSemana,
       // Todo save do profissional (inclusive o que só alterna publicado) marca o plano como
       // dele, nunca mais como sugestão de IA pendente de revisão — é o que faz a constraint
       // `plans_ia_exige_revisao` nunca disparar em uso normal.

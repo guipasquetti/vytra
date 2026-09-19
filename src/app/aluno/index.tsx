@@ -18,6 +18,7 @@ import { proximaTeleconsulta, type Teleconsulta } from '@/services/teleconsultaS
 import {
   concluidoHoje,
   getWorkoutData,
+  persistenciaSemanal,
   proximoDiaTreino,
   streakTreino,
   type WorkoutData,
@@ -116,6 +117,11 @@ export default function InicioScreen() {
     concluidoHoje(estado.workout!.historico[ex.id]),
   ).length;
   const streak = estado.workout ? streakTreino(estado.workout.historico) : 0;
+  const treinosSemana = estado.workout?.plano?.treinos_semana ?? null;
+  const persistencia =
+    estado.workout && treinosSemana
+      ? persistenciaSemanal(estado.workout.historico, treinosSemana)
+      : null;
 
   const refeicoesReais = estado.plano?.publicado ? estado.plano.refeicoes : [];
   const totalDia = somaMacros(refeicoesReais.flatMap((r) => itensReais(r.itens)));
@@ -144,7 +150,11 @@ export default function InicioScreen() {
     <Screen title={`Olá, ${primeiroNome}`} subtitle="Resumo de hoje">
       <Card>
         <View style={styles.statsRow}>
-          <Stat value={String(streak)} label={streak === 1 ? 'dia seguido' : 'dias seguidos'} color={Palette.orange} />
+          {persistencia != null ? (
+            <Stat value={`${persistencia}%`} label="persistência" color={Palette.orange} />
+          ) : (
+            <Stat value={String(streak)} label={streak === 1 ? 'dia seguido' : 'dias seguidos'} color={Palette.orange} />
+          )}
           <Stat
             value={exerciciosHoje.length ? `${concluidosHoje}/${exerciciosHoje.length}` : '—'}
             label="treino hoje"

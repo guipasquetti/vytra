@@ -3,6 +3,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 
+import { AppLockGate } from '@/components/app-lock-gate';
 import { useAuthStore } from '@/store/authStore';
 import { Palette } from '@/theme';
 import { useBrandFonts } from '@/theme/fonts';
@@ -94,6 +95,7 @@ export default function RootLayout() {
         <Stack.Screen name="aluno" />
         <Stack.Screen name="pro" />
       </Stack>
+      <AppLockGate />
     </ThemeProvider>
   );
 }

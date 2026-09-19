@@ -63,6 +63,7 @@ export default function EditorPlanoScreen() {
         dados.plano?.treinador || profile?.nome || '',
         dados.plano?.publicado ?? false,
         dados.plano?.gerado_por_ia ?? false,
+        dados.plano?.treinos_semana ?? null,
       ),
     );
   }, [clientId, profile?.nome]);
@@ -226,6 +227,17 @@ export default function EditorPlanoScreen() {
           value={plano.treinador}
           onChangeText={(treinador) => setPlano({ ...plano, treinador })}
         />
+        <Field
+          label="Treinos por semana"
+          value={plano.treinosSemana != null ? String(plano.treinosSemana) : ''}
+          keyboardType="number-pad"
+          onChangeText={(v) => setPlano({ ...plano, treinosSemana: v ? Number(v) || null : null })}
+          placeholder="Ex.: 5"
+        />
+        <Caption>
+          Em branco, o app mostra “dias seguidos” pro aluno; preenchido, mostra % da semana —
+          e não quebra em dia de descanso agendado.
+        </Caption>
       </Card>
 
       {plano.dias.map((dia, i) => (
@@ -300,6 +312,15 @@ export default function EditorPlanoScreen() {
                   value={String(ex.max)}
                   keyboardType="number-pad"
                   onChangeText={(v) => atualizarExercicio(i, j, { max: Number(v) || 0 })}
+                />
+                <Field
+                  label="Descanso (s)"
+                  value={ex.descanso ? String(ex.descanso) : ''}
+                  keyboardType="number-pad"
+                  onChangeText={(v) =>
+                    atualizarExercicio(i, j, { descanso: Number(v) || undefined })
+                  }
+                  placeholder="90"
                 />
               </View>
 

@@ -1,6 +1,7 @@
+import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams } from 'expo-router';
-import { useCallback, useEffect, useState } from 'react';
-import { Image, Linking, ScrollView, StyleSheet, View } from 'react-native';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { Image, Linking, Modal, Pressable, ScrollView, StyleSheet, Vibration, View } from 'react-native';
 
 import {
   Body,
@@ -9,10 +10,10 @@ import {
   Card,
   EmptyState,
   Field,
+  GraficoPontos,
   Loading,
   Pill,
   Screen,
-  SectionTitle,
   StepperButton,
 } from '@/components/ui';
 import {
@@ -32,6 +33,7 @@ import {
   seriesDeHoje,
   sessaoAnterior,
   sugerirSerie,
+  type Sessao,
   type WorkoutData,
 } from '@/services/workoutService';
 import { temPlanoConfirmado } from '@/services/professionalService';
@@ -176,6 +178,8 @@ function ExercicioCard({
 
   const [pendente, setPendente] = useState<SetLog | null>(null);
   const [salvando, setSalvando] = useState(false);
+  const [descansoIniciadoEm, setDescansoIniciadoEm] = useState<number | null>(null);
+  const [historicoAberto, setHistoricoAberto] = useState(false);
 
   const sugerida = pendente ?? sugerirSerie(ex, logadas, anterior);
 
@@ -183,6 +187,8 @@ function ExercicioCard({
     setSalvando(true);
     try {
       await registrarSerie(clientId, ex, logadas, sugerida);
+      const aindaFalta = ex.sets - logadas.length - 1 > 0;
+      setDescansoIniciadoEm(aindaFalta ? Date.now() : null);
       setPendente(null);
       await onMudou();
     } finally {
@@ -195,6 +201,7 @@ function ExercicioCard({
     try {
       const removida = await corrigirUltimaSerie(clientId, ex, historico, rascunho);
       setPendente(removida);
+      setDescansoIniciadoEm(null);
       await onMudou();
     } finally {
       setSalvando(false);
@@ -283,6 +290,15 @@ function ExercicioCard({
         <Caption color={Palette.green}>✓ Treino de hoje registrado</Caption>
       ) : (
         <View style={styles.registro}>
+          {descansoIniciadoEm ? (
+            <DescansoTimer
+              inicio={descansoIniciadoEm}
+              duracaoMs={(ex.descanso ?? 90) * 1000}
+              cor={cor}
+              onPular={() => setDescansoIniciadoEm(null)}
+            />
+          ) : null}
+
           {!ex.tempo && (
             <View style={styles.stepperRow}>
               <Caption>Carga</Caption>
@@ -341,23 +357,127 @@ function ExercicioCard({
       )}
 
       {historico && historico.length > 0 && (
-        <View style={styles.historico}>
-          <SectionTitle>Histórico</SectionTitle>
-          {historico
-            .slice()
-            .reverse()
-            .slice(0, 5)
-            .map((s, i) => (
-              <View key={i} style={styles.histRow}>
-                <Caption>{formatarData(s.data)}</Caption>
-                <Caption color={Palette.text}>
-                  {s.sets.map((x) => formatarSet(ex, x)).join('  ·  ')}
-                </Caption>
-              </View>
-            ))}
-        </View>
+        <Button
+          label="Ver histórico completo"
+          variant="ghost"
+          color={cor}
+          onPress={() => setHistoricoAberto(true)}
+        />
       )}
+
+      <ModalHistorico
+        ex={ex}
+        historico={historico ?? []}
+        cor={cor}
+        visible={historicoAberto}
+        onClose={() => setHistoricoAberto(false)}
+      />
     </Card>
+  );
+}
+
+/**
+ * Contagem de descanso baseada em timestamp (não em contador decrescente) — voltar de
+ * background recalcula certo na hora, sem precisar de `AppState`/lidar com drift. Ao chegar a
+ * zero, vibra uma vez e passa a contar pra cima: quanto passou do descanso previsto é o
+ * atraso do retorno.
+ */
+function DescansoTimer({
+  inicio,
+  duracaoMs,
+  cor,
+  onPular,
+}: {
+  inicio: number;
+  duracaoMs: number;
+  cor: string;
+  onPular: () => void;
+}) {
+  const [agora, setAgora] = useState(inicio);
+  const vibrou = useRef(false);
+
+  useEffect(() => {
+    const id = setInterval(() => setAgora(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, []);
+
+  const restanteMs = duracaoMs - (agora - inicio);
+  const zerou = restanteMs <= 0;
+
+  useEffect(() => {
+    if (zerou && !vibrou.current) {
+      vibrou.current = true;
+      Vibration.vibrate(400);
+    }
+  }, [zerou]);
+
+  return (
+    <View style={[styles.timer, { borderColor: cor }]}>
+      <Ionicons name="time-outline" size={20} color={cor} />
+      <Body style={[styles.timerValor, { color: cor }]}>
+        {zerou ? `+${formatarDuracao(-restanteMs)}` : formatarDuracao(restanteMs)}
+      </Body>
+      <Caption color={Palette.textSecondary}>{zerou ? 'atrasado pro retorno' : 'descanso'}</Caption>
+      <Button label="Pular" variant="ghost" color={Palette.textSecondary} onPress={onPular} />
+    </View>
+  );
+}
+
+function formatarDuracao(ms: number): string {
+  const s = Math.max(0, Math.round(ms / 1000));
+  const min = Math.floor(s / 60);
+  const seg = s % 60;
+  return `${min}:${String(seg).padStart(2, '0')}`;
+}
+
+/** Gráfico de evolução + histórico completo do exercício, aberto à parte do card principal. */
+function ModalHistorico({
+  ex,
+  historico,
+  cor,
+  visible,
+  onClose,
+}: {
+  ex: Exercicio;
+  historico: Sessao[];
+  cor: string;
+  visible: boolean;
+  onClose: () => void;
+}) {
+  // `sets` só guarda série "working" de verdade (warm/feeder são texto informativo, nunca
+  // passam por `registrarSerie`) — primeiro set já é a primeira série de trabalho, mesma
+  // leitura que `avaliar()` faz em `anterior.sets[0]`.
+  const valores = historico.map((s) => (ex.tempo ? s.sets[0]?.r : s.sets[0]?.p) ?? 0);
+
+  return (
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+      <View style={styles.modalFundo}>
+        <View style={styles.modalCard}>
+          <View style={styles.modalHeader}>
+            <Body style={styles.exName}>{ex.nome}</Body>
+            <Pressable onPress={onClose} hitSlop={12}>
+              <Ionicons name="close" size={24} color={Palette.text} />
+            </Pressable>
+          </View>
+
+          {historico.length >= 2 ? <GraficoPontos valores={valores} cor={cor} /> : null}
+
+          <ScrollView contentContainerStyle={styles.modalLista}>
+            {historico
+              .slice()
+              .reverse()
+              .map((s, i) => (
+                <View key={i} style={styles.histRow}>
+                  <Caption>{formatarData(s.data)}</Caption>
+                  <Caption color={Palette.text}>
+                    {s.sets.map((x) => formatarSet(ex, x)).join('  ·  ')}
+                  </Caption>
+                </View>
+              ))}
+          </ScrollView>
+        </View>
+      </View>
+    </Modal>
   );
 }
 
@@ -429,12 +549,45 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontVariant: ['tabular-nums'],
   },
-  historico: {
-    gap: Spacing.xs,
-  },
   histRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     gap: Spacing.md,
+  },
+  timer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: Radius.md,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+  },
+  timerValor: {
+    fontVariant: ['tabular-nums'],
+    fontWeight: '800',
+  },
+  modalFundo: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: Spacing.lg,
+  },
+  modalCard: {
+    width: '100%',
+    maxHeight: '80%',
+    backgroundColor: Palette.surface,
+    borderRadius: Radius.md,
+    padding: Spacing.lg,
+    gap: Spacing.md,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  modalLista: {
+    gap: Spacing.xs,
   },
 });

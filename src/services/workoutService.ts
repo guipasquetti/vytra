@@ -86,6 +86,33 @@ export function streakTreino(historico: Record<string, Sessao[]>): number {
 }
 
 /**
+ * Persistência da semana em percentual: dias com pelo menos um exercício registrado nos
+ * últimos 7 dias corridos (hoje + 6 pra trás) dividido pelo nº de treinos esperados por
+ * semana. Diferente de `streakTreino`, não quebra/reinicia num dia sem sessão — é assim que
+ * um dia de descanso agendado no cronograma deixa de "zerar o ciclo" a cada semana.
+ */
+export function persistenciaSemanal(
+  historico: Record<string, Sessao[]>,
+  treinosSemana: number,
+): number {
+  if (treinosSemana <= 0) return 0;
+
+  const dias = new Set<string>();
+  for (const sessoes of Object.values(historico)) {
+    for (const s of sessoes) dias.add(s.data);
+  }
+
+  let cursor = hojeISO();
+  let batidos = 0;
+  for (let i = 0; i < 7; i++) {
+    if (dias.has(cursor)) batidos++;
+    cursor = diaAnteriorISO(cursor);
+  }
+
+  return Math.min(100, Math.round((batidos / treinosSemana) * 100));
+}
+
+/**
  * Qual dia do plano (A/B/C...) é "o de hoje" — o app não tem calendário de treino, é o
  * aluno quem escolhe a ordem, então "hoje" é o próximo da sequência depois do último dia
  * batido, ciclando de volta ao início. Antes disso, tanto o Início quanto a aba Treino

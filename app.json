@@ -45,6 +45,12 @@
         {
           "photosPermission": "A Vytra acessa suas fotos pra você enviar uma foto já tirada no check-in ou um documento de exame."
         }
+      ],
+      [
+        "expo-local-authentication",
+        {
+          "faceIDPermission": "A Vytra usa Face ID pra travar o app e proteger seus dados de saúde."
+        }
       ]
     ],
     "experiments": {
