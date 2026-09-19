@@ -1,9 +1,14 @@
 # Vytra — Handoff
 
 > Documento de contexto para replicar o estado do projeto em outro chat.
-> Última atualização: 14/Setembro/2026 — §7 corrigido: os 3 gaps do WebDiet estavam registrados
-> como "em aberto" mesmo com prontuário evolutivo (§33) e anexos (§35) já construídos e em
-> produção desde 12/set; só financeiro segue bloqueado por CNPJ.
+> Última atualização: 19/Setembro/2026 — §49 a §57: biblioteca de ilustrações diversas, botão
+> de voltar em toda tela de push, máscara de data/hora + calendário de agendamento, reenvio de
+> anamnese pedido pelo profissional, galeria de fotos de check-in (ampliáveis) com análise
+> automática por IA (Claude Sonnet — nova pendência de LGPD, foto de corpo é dado mais sensível
+> que o texto da anamnese, ver §56), e do lado do aluno: timer de descanso, histórico de treino
+> em modal, trava biométrica de reabertura e persistência semanal em %. Guilherme criou as
+> primeiras contas de teste (treinador e nutricionista) pra validação ponta a ponta, ainda em
+> andamento.
 
 > **Fonte canônica:** este arquivo, na raiz do repositório. Todo agente (Codex ou Claude) deve lê-lo antes de alterar o projeto e atualizá-lo ao concluir mudanças relevantes, decisões, migrações, configuração de infraestrutura ou bloqueios.
 
