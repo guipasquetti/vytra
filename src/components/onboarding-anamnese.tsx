@@ -166,6 +166,8 @@ export function LinhaBaseFotos({ clientId, respostas, onChange, somenteLeitura =
  */
 export function OnboardingAnamnese({ onConcluido }: { onConcluido: () => void }) {
   const user = useAuthStore((s) => s.user);
+  const profile = useAuthStore((s) => s.profile);
+  const setProfile = useAuthStore((s) => s.setProfile);
   const [respostas, setRespostas] = useState<RespostasAnamnese>({});
   const [planos, setPlanos] = useState<PlanoProfissional[]>([]);
   const [planoId, setPlanoId] = useState<string | null>(null);
@@ -296,6 +298,12 @@ export function OnboardingAnamnese({ onConcluido }: { onConcluido: () => void })
           'Não consegui enviar. Atualize a página e entre de novo, suas respostas ficam salvas neste aparelho.'
         );
         return;
+      }
+      const sexoEscolhido = respostas.sexo;
+      if (profile && (sexoEscolhido === 'feminino' || sexoEscolhido === 'masculino' || sexoEscolhido === 'outro')) {
+        // O banco já foi atualizado pela RPC; espelha no estado local antes de liberar as abas
+        // para que o próximo check-in abra com a referência correspondente, sem exigir reload.
+        setProfile({ ...profile, sexo: sexoEscolhido });
       }
       await AsyncStorage.removeItem(chaveRascunho(user.id)).catch(() => {});
       onConcluido();

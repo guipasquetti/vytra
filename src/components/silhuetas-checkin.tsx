@@ -28,12 +28,26 @@ const REFERENCIAS_FOTO = {
   },
 } as const;
 
+export type SexoModelo = 'feminino' | 'masculino';
+
+/**
+ * Perfis antigos e importados podem trazer "Masculino", "homem" ou "M"; a seleção de
+ * asset não pode depender da grafia exata que o formulário atual grava. O fallback preserva
+ * o comportamento anterior para "outro" ou ainda não informado.
+ */
+export function normalizarSexoModelo(sexo: string | null | undefined): SexoModelo {
+  const valor = sexo?.trim().toLocaleLowerCase('pt-BR');
+  return valor === 'masculino' || valor === 'masc' || valor === 'homem' || valor === 'm'
+    ? 'masculino'
+    : 'feminino';
+}
+
 function posePara(
   tipo: AnguloFoto,
   sexo: string | null | undefined,
   colecao: typeof GUIAS,
 ) {
-  const modelo = sexo === 'masculino' ? colecao.masculino : colecao.feminino;
+  const modelo = colecao[normalizarSexoModelo(sexo)];
   return tipo === 'frente' ? modelo.frente : tipo === 'costas' ? modelo.costas : modelo.perfil;
 }
 

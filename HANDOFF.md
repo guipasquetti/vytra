@@ -4415,3 +4415,15 @@ fluxos de foto: a linha de base guiada e uma foto avulsa opcional.
 - **Publicado e commitado:** `1001ae9 fix: unifica fotos e grade da anamnese`, enviado para
   `origin/main`. EAS Hosting e Vercel publicados; os dois endereços públicos responderam HTTP
   200 após o deploy.
+
+## 62. Seleção correta de silhueta por sexo (19/set)
+
+✅ **Correção solicitada pelo Guilherme:** os assets feminino e masculino existem e foram
+inspecionados (frente, perfil e costas, tanto referência quanto guia). O erro era a seleção:
+qualquer valor que não fosse exatamente `masculino` escolhia feminino, incluindo dados legados
+como `Masculino`, `homem` e `M`.
+
+- `normalizarSexoModelo` agora mapeia as grafias legadas masculinas antes de selecionar o asset.
+- Ao concluir a anamnese, o sexo validado também atualiza o perfil em memória, então o primeiro
+  check-in logo após o onboarding usa a silhueta correta sem exigir atualização da página.
+- Verificado: `npx tsc --noEmit`, `npx expo export --platform web` e `git diff --check` passam.
