@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as ImagePicker from 'expo-image-picker';
 import { useCallback, useEffect, useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { Modal, StyleSheet, View } from 'react-native';
 
 import { CameraGuiada, type AnguloFoto } from '@/components/camera-guiada';
 import { SaveIndicator, type StatusSalvamento } from '@/components/save-indicator';
@@ -234,7 +234,9 @@ export function LinhaBaseFotos({ clientId, respostas, onChange, somenteLeitura =
   return <Card><SectionTitle>Fotos de linha de base</SectionTitle>
     {!consentiu && !somenteLeitura ? <><Caption>Quatro fotos guiadas criam seu ponto de partida. Só você e seu profissional vinculado podem vê-las. Você pode revogar esse consentimento pela área Privacidade do app Vytra.</Caption><Button label="Aceitar e registrar consentimento" onPress={aceitar} /></> : null}
     {consentiu || somenteLeitura ? <View style={styles.fotoBotoes}>{poses.map(({ tipo, label }) => urls[tipo] && somenteLeitura ? <FotoAmpliavel key={tipo} uri={urls[tipo]} width={100} height={140} /> : <Button key={tipo} label={respostas[`__linha_base_${tipo}`] ? `${label} registrada` : `Registrar ${label}`} variant="ghost" onPress={() => setCamera(tipo)} disabled={somenteLeitura} />)}</View> : null}
-    {camera ? <View style={styles.cameraOverlay}><CameraGuiada tipo={camera} onCancelar={() => setCamera(null)} onFoto={async (arquivo) => { const tipo = camera; setCamera(null); await salvar(tipo, arquivo); }} /></View> : null}
+    <Modal visible={Boolean(camera)} animationType="slide" onRequestClose={() => setCamera(null)}>
+      {camera ? <CameraGuiada tipo={camera} onCancelar={() => setCamera(null)} onFoto={async (arquivo) => { const tipo = camera; setCamera(null); await salvar(tipo, arquivo); }} /> : null}
+    </Modal>
   </Card>;
 }
 
