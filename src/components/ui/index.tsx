@@ -220,18 +220,20 @@ export function Pill({
   active,
   color,
   onPress,
+  style,
 }: {
   label: string;
   active?: boolean;
   color?: string;
   onPress?: () => void;
+  style?: StyleProp<ViewStyle>;
 }) {
   const roleColor = useRoleColor();
   color ??= roleColor;
   return (
     <Pressable
       onPress={onPress}
-      style={[styles.pill, active ? { borderColor: color } : styles.pillInactive]}>
+      style={[styles.pill, active ? { borderColor: color } : styles.pillInactive, style]}>
       <Text style={[styles.pillText, active ? { color } : undefined]}>{label}</Text>
     </Pressable>
   );
@@ -244,6 +246,7 @@ export function Button({
   variant = 'solid',
   disabled,
   loading,
+  style,
 }: {
   label: string;
   onPress?: () => void;
@@ -251,6 +254,7 @@ export function Button({
   variant?: 'solid' | 'ghost';
   disabled?: boolean;
   loading?: boolean;
+  style?: StyleProp<ViewStyle>;
 }) {
   const roleColor = useRoleColor();
   color ??= roleColor;
@@ -264,6 +268,7 @@ export function Button({
         solid ? { backgroundColor: solidColor } : [styles.buttonGhost, { borderColor: color }],
         (disabled || loading) && styles.buttonDisabled,
         pressed && styles.cardPressed,
+        style,
       ]}>
       {loading ? (
         <ActivityIndicator color={solid ? Palette.background : color} />

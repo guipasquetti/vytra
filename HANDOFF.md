@@ -4398,3 +4398,17 @@ um commit por rodada ou tudo junto.
 - **Publicado e commitado:** `5657599 feat: estrutura campos da anamnese`, enviado para
   `origin/main`. Publicado via EAS Hosting e Vercel; `app-treino.expo.app` e
   `app.vytraoficial.com.br` responderam HTTP 200 após o deploy.
+
+## 61. Uma única captura de foto e grade responsiva (19/set)
+
+✅ **Correção solicitada pelo Guilherme após revisão visual:** a anamnese exibia por engano dois
+fluxos de foto: a linha de base guiada e uma foto avulsa opcional.
+
+- Removido o card/fluxo de foto avulsa do onboarding, da reedição do paciente e da revisão do
+  profissional. A única captura nova é a linha de base de quatro poses, com consentimento.
+  `foto_path` e caminhos antigos continuam preservados quando a pessoa salva a anamnese; a
+  correção só elimina a duplicidade visual e não apaga dado de saúde/imagem existente.
+- Botões de poses e alternativas da anamnese agora usam a mesma grade fluida: colunas de largura
+  equivalente no desktop, duas ou uma coluna no espaço reduzido, sem tamanhos definidos pelo
+  comprimento de cada rótulo.
+- Verificado: `npx tsc --noEmit`, `npx expo export --platform web` e `git diff --check` passam.

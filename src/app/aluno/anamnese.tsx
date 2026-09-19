@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useFocusEffect, useRouter } from 'expo-router';
 
-import { AnamneseCampos, AnamneseFoto } from '@/components/onboarding-anamnese';
+import { AnamneseCampos } from '@/components/onboarding-anamnese';
 import { SaveIndicator, type StatusSalvamento } from '@/components/save-indicator';
 import { Button, Caption, Card, Loading, Screen } from '@/components/ui';
 import type { RespostasAnamnese } from '@/models/anamnese';
@@ -113,7 +113,6 @@ export default function AnamneseAlunoScreen() {
         </Card>
       ) : null}
       <AnamneseCampos respostas={respostas} onChange={atualizarResposta} />
-      <AnamneseFoto clientId={user.id} fotoPath={fotoPath} onFotoChange={setFotoPath} />
       {erro ? <Caption color={Palette.danger}>{erro}</Caption> : null}
       <Button label="Salvar" onPress={salvar} loading={salvando} />
     </Screen>

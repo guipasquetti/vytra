@@ -2,7 +2,7 @@ import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
 
 import { AlunoTabs } from '@/components/aluno-tabs';
-import { AnamneseCampos, AnamneseFoto, LinhaBaseFotos } from '@/components/onboarding-anamnese';
+import { AnamneseCampos, LinhaBaseFotos } from '@/components/onboarding-anamnese';
 import { Button, Caption, Card, Loading, Screen } from '@/components/ui';
 import type { RespostasAnamnese } from '@/models/anamnese';
 import {
@@ -21,7 +21,6 @@ export default function AnamnesePacienteScreen() {
   const { id: clientId } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const [respostas, setRespostas] = useState<RespostasAnamnese>({});
-  const [fotoPath, setFotoPath] = useState<string | null>(null);
   const [atualizadoEm, setAtualizadoEm] = useState<string | null>(null);
   const [solicitadaEm, setSolicitadaEm] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -34,7 +33,6 @@ export default function AnamnesePacienteScreen() {
     const anamnese = await obterAnamnese(clientId);
     if (anamnese) {
       setRespostas(anamnese.respostasCompletas);
-      setFotoPath(anamnese.fotoPath);
       setAtualizadoEm(anamnese.atualizadoEm);
       setSolicitadaEm(anamnese.solicitadaAtualizacaoEm);
     }
@@ -107,7 +105,6 @@ export default function AnamnesePacienteScreen() {
       )}
       <AnamneseCampos respostas={respostas} onChange={atualizarResposta} />
       <LinhaBaseFotos clientId={clientId!} respostas={respostas} onChange={atualizarResposta} somenteLeitura />
-      <AnamneseFoto clientId={clientId!} fotoPath={fotoPath} somenteLeitura />
       {erro ? <Caption color={Palette.danger}>{erro}</Caption> : null}
       <Button label="Salvar" onPress={salvar} loading={salvando} />
     </Screen>

@@ -9,12 +9,7 @@ import { SaveIndicator, type StatusSalvamento } from '@/components/save-indicato
 import { Body, Button, Caption, Card, Field, FotoAmpliavel, Pill, Screen, SectionTitle } from '@/components/ui';
 import { supabase } from '@/lib/supabase';
 import { calcularMediaSono, SECOES_ANAMNESE, type CampoAnamnese, type RespostasAnamnese } from '@/models/anamnese';
-import {
-  obterAnaliseFotoAnamnese,
-  obterUrlFotoAnamnese,
-  uploadFotoAnamnese,
-  type AnaliseFotoAnamnese,
-} from '@/services/anamneseService';
+import { obterUrlFotoAnamnese, uploadFotoAnamnese } from '@/services/anamneseService';
 import { listarMeusProfissionais, listarPlanos, type PlanoProfissional } from '@/services/professionalService';
 import {
   obterRascunhoAnamnese,
@@ -80,8 +75,8 @@ export function AnamneseCampos({
         <View key={campo.id} style={styles.campoEscolha}>
           <Caption>{campo.label}</Caption>
           <View style={styles.opcoes}>
-            <Pill label="Não" active={respondeuNao} onPress={() => mudarCampo(campo.id, 'Não')} />
-            <Pill label="Sim" active={respondeuSim} onPress={() => mudarCampo(campo.id, 'Sim')} />
+            <Pill label="Não" active={respondeuNao} style={styles.opcaoBotao} onPress={() => mudarCampo(campo.id, 'Não')} />
+            <Pill label="Sim" active={respondeuSim} style={styles.opcaoBotao} onPress={() => mudarCampo(campo.id, 'Sim')} />
           </View>
           {respondeuSim ? (
             <Field
@@ -101,7 +96,7 @@ export function AnamneseCampos({
           <Caption>{campo.label}</Caption>
           <View style={styles.opcoes}>
             {campo.opcoes.map((opcao) => (
-              <Pill key={opcao.valor} label={opcao.label} active={valor === opcao.valor} onPress={() => mudarCampo(campo.id, opcao.valor)} />
+              <Pill key={opcao.valor} label={opcao.label} style={styles.opcaoBotao} active={valor === opcao.valor} onPress={() => mudarCampo(campo.id, opcao.valor)} />
             ))}
           </View>
         </View>
@@ -132,151 +127,6 @@ export function AnamneseCampos({
   );
 }
 
-/**
- * Foto opcional anexada na anamnese (19/set, pedido do Guilherme) — anexo pro profissional ver,
- * sem as silhuetas-guia da câmera do check-in (`CameraGuiada`), que existem pra comparar ângulo
- * do corpo entre check-ins; aqui é só "manda uma foto se quiser". Ganhou análise automática por
- * IA (mesmo dia, pedido explícito dele: "como as do check-in", §56) — resultado só aparece no
- * modo `somenteLeitura` (visão do profissional), nunca pro próprio paciente. Compartilhado pelas
- * 3 telas que renderizam `AnamneseCampos` (onboarding, reedição do paciente, revisão do
- * profissional) — o profissional só visualiza, nunca troca a foto do paciente por conta própria.
- */
-export function AnamneseFoto({
-  clientId,
-  fotoPath,
-  onFotoChange,
-  somenteLeitura = false,
-}: {
-  clientId: string;
-  fotoPath: string | null;
-  onFotoChange?: (caminho: string) => void;
-  somenteLeitura?: boolean;
-}) {
-  const [fotoUrl, setFotoUrl] = useState<string | null>(null);
-  const [enviando, setEnviando] = useState(false);
-  const [erro, setErro] = useState<string | null>(null);
-  const [analise, setAnalise] = useState<AnaliseFotoAnamnese | null>(null);
-
-  useEffect(() => {
-    let cancelado = false;
-    (fotoPath ? obterUrlFotoAnamnese(fotoPath) : Promise.resolve(null)).then((url) => {
-      if (!cancelado) setFotoUrl(url);
-    });
-    return () => {
-      cancelado = true;
-    };
-  }, [fotoPath]);
-
-  // Análise só é buscada (e mostrada) no modo somenteLeitura — é a visão do profissional; o
-  // paciente nunca lê isso (RLS de `analise_foto_anamnese` já bloqueia, mas nem tenta buscar
-  // aqui). Descarta análise de uma foto anterior se `fotoPath` já mudou e a nova ainda não tem
-  // resultado (roda em background, pode levar alguns segundos).
-  useEffect(() => {
-    if (!somenteLeitura || !fotoPath) {
-      setAnalise(null);
-      return;
-    }
-    let cancelado = false;
-    obterAnaliseFotoAnamnese(clientId)
-      .then((a) => {
-        if (!cancelado) setAnalise(a && a.fotoPath === fotoPath ? a : null);
-      })
-      .catch(() => {
-        if (!cancelado) setAnalise(null);
-      });
-    return () => {
-      cancelado = true;
-    };
-  }, [somenteLeitura, clientId, fotoPath]);
-
-  async function enviarArquivo(arquivo: { uri: string; name: string }) {
-    setErro(null);
-    setEnviando(true);
-    try {
-      const caminho = await uploadFotoAnamnese(clientId, arquivo);
-      onFotoChange?.(caminho);
-    } catch (e) {
-      setErro(e instanceof Error ? e.message : 'Não consegui enviar a foto.');
-    } finally {
-      setEnviando(false);
-    }
-  }
-
-  async function tirarFoto() {
-    const permissao = await ImagePicker.requestCameraPermissionsAsync();
-    if (!permissao.granted) {
-      setErro('Sem acesso à câmera — permite o acesso nas configurações pra tirar a foto.');
-      return;
-    }
-    const resultado = await ImagePicker.launchCameraAsync({ quality: 0.8 });
-    if (resultado.canceled || !resultado.assets?.[0]) return;
-    const arquivo = resultado.assets[0];
-    await enviarArquivo({ uri: arquivo.uri, name: arquivo.fileName ?? 'anamnese.jpg' });
-  }
-
-  async function escolherDaGaleria() {
-    const permissao = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!permissao.granted) {
-      setErro('Sem acesso às fotos — permite o acesso nas configurações pra escolher da galeria.');
-      return;
-    }
-    const resultado = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.8 });
-    if (resultado.canceled || !resultado.assets?.[0]) return;
-    const arquivo = resultado.assets[0];
-    await enviarArquivo({ uri: arquivo.uri, name: arquivo.fileName ?? 'anamnese.jpg' });
-  }
-
-  if (somenteLeitura && !fotoUrl) return null;
-
-  return (
-    <Card>
-      <SectionTitle>Foto (opcional)</SectionTitle>
-      {!somenteLeitura ? (
-        <Caption>Uma foto ajuda seu profissional a te conhecer melhor — não é obrigatório.</Caption>
-      ) : null}
-      {fotoUrl ? (
-        <View style={styles.fotoPreview}>
-          <FotoAmpliavel uri={fotoUrl} width={110} height={140} />
-        </View>
-      ) : null}
-      {somenteLeitura && fotoUrl ? (
-        analise ? (
-          <View style={styles.analise}>
-            <Caption color={Palette.accent}>Análise de IA</Caption>
-            <Body>{analise.resumo}</Body>
-            {analise.indicadores.map((ind, i) => (
-              <Caption key={i}>
-                {ind.rotulo}: {ind.observacao}
-              </Caption>
-            ))}
-          </View>
-        ) : (
-          <Caption color={Palette.textTertiary} style={styles.analise}>
-            Sem análise de IA pra esta foto ainda.
-          </Caption>
-        )
-      ) : null}
-      {!somenteLeitura ? (
-        <View style={styles.fotoBotoes}>
-          <Button
-            label={fotoPath ? 'Trocar foto — câmera' : 'Tirar foto'}
-            variant="ghost"
-            onPress={tirarFoto}
-            loading={enviando}
-          />
-          <Button
-            label="Escolher da galeria"
-            variant="ghost"
-            onPress={escolherDaGaleria}
-            loading={enviando}
-          />
-        </View>
-      ) : null}
-      {erro ? <Caption color={Palette.danger}>{erro}</Caption> : null}
-    </Card>
-  );
-}
-
 /** Linha de base visual: mesmas quatro poses e guia do check-in; paths ficam no JSON da anamnese. */
 export function LinhaBaseFotos({ clientId, respostas, onChange, somenteLeitura = false }: { clientId: string; respostas: RespostasAnamnese; onChange: (id: string, valor: string) => void; somenteLeitura?: boolean }) {
   const sexoPerfil = useAuthStore((store) => store.profile?.sexo);
@@ -301,7 +151,7 @@ export function LinhaBaseFotos({ clientId, respostas, onChange, somenteLeitura =
   async function galeria() { if (!camera) return; const r = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.8 }); if (!r.canceled && r.assets?.[0]) { const tipo = camera; setCamera(null); await salvar(tipo, { uri: r.assets[0].uri, name: r.assets[0].fileName ?? `${tipo}.jpg` }); } }
   return <Card><SectionTitle>Fotos de linha de base</SectionTitle>
     {!consentiu && !somenteLeitura ? <><Caption>Quatro fotos guiadas criam seu ponto de partida. Só você e seu profissional vinculado podem vê-las. Você pode revogar esse consentimento pela área Privacidade do app Vytra.</Caption><Button label="Aceitar e registrar consentimento" onPress={aceitar} /></> : null}
-    {consentiu || somenteLeitura ? <View style={styles.fotoBotoes}>{poses.map(({ tipo, label }) => urls[tipo] && somenteLeitura ? <FotoAmpliavel key={tipo} uri={urls[tipo]} width={100} height={140} /> : <Button key={tipo} label={respostas[`__linha_base_${tipo}`] ? `${label} registrada` : `Registrar ${label}`} variant="ghost" onPress={() => { setAbrirCamera(false); setCamera(tipo); }} disabled={somenteLeitura} />)}</View> : null}
+    {consentiu || somenteLeitura ? <View style={styles.fotoBotoes}>{poses.map(({ tipo, label }) => urls[tipo] && somenteLeitura ? <FotoAmpliavel key={tipo} uri={urls[tipo]} width={100} height={140} /> : <Button key={tipo} label={respostas[`__linha_base_${tipo}`] ? `${label} registrada` : `Registrar ${label}`} variant="ghost" style={styles.acaoGrade} onPress={() => { setAbrirCamera(false); setCamera(tipo); }} disabled={somenteLeitura} />)}</View> : null}
     <Modal visible={Boolean(camera)} animationType="slide" onRequestClose={() => setCamera(null)}>
       {camera && abrirCamera ? <CameraGuiada tipo={camera} sexo={sexo} onCancelar={() => setAbrirCamera(false)} onFoto={async (arquivo) => { const tipo = camera; setCamera(null); await salvar(tipo, arquivo); }} /> : <Screen title="Adicionar foto" subtitle="Escolha como registrar esta pose" scroll={false}><Card><Button label="Tirar foto" onPress={() => setAbrirCamera(true)} /><Button label="Escolher da galeria" variant="ghost" onPress={galeria} /><Button label="Cancelar" variant="ghost" onPress={() => setCamera(null)} /></Card></Screen>}
     </Modal>
@@ -319,6 +169,8 @@ export function OnboardingAnamnese({ onConcluido }: { onConcluido: () => void })
   const [respostas, setRespostas] = useState<RespostasAnamnese>({});
   const [planos, setPlanos] = useState<PlanoProfissional[]>([]);
   const [planoId, setPlanoId] = useState<string | null>(null);
+  // Compatibilidade: fotos avulsas enviadas antes desta correção não voltam a aparecer na UI,
+  // mas o caminho continua no rascunho/envio para não apagar dado já entregue pelo paciente.
   const [fotoPath, setFotoPath] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
@@ -475,10 +327,6 @@ export function OnboardingAnamnese({ onConcluido }: { onConcluido: () => void })
 
       {user ? <LinhaBaseFotos clientId={user.id} respostas={respostas} onChange={atualizarResposta} /> : null}
 
-      {user ? (
-        <AnamneseFoto clientId={user.id} fotoPath={fotoPath} onFotoChange={setFotoPath} />
-      ) : null}
-
       <Card>
         <SectionTitle>Qual plano você quer contratar?</SectionTitle>
         {planos.length ? (
@@ -515,6 +363,11 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     gap: Spacing.sm,
   },
+  opcaoBotao: {
+    flexGrow: 1,
+    flexBasis: 150,
+    alignItems: 'center',
+  },
   campoEscolha: {
     gap: Spacing.xs,
   },
@@ -535,8 +388,5 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     gap: Spacing.sm,
   },
-  analise: {
-    gap: Spacing.xs,
-    marginTop: Spacing.sm,
-  },
+  acaoGrade: { flexGrow: 1, flexBasis: 180 },
 });
