@@ -4427,3 +4427,6 @@ como `Masculino`, `homem` e `M`.
 - Ao concluir a anamnese, o sexo validado também atualiza o perfil em memória, então o primeiro
   check-in logo após o onboarding usa a silhueta correta sem exigir atualização da página.
 - Verificado: `npx tsc --noEmit`, `npx expo export --platform web` e `git diff --check` passam.
+- **Publicado e commitado:** `34cf86f fix: normaliza silhueta por sexo`, enviado para
+  `origin/main`. EAS Hosting e Vercel publicados; ambos os endereços públicos responderam HTTP
+  200 após o deploy.
