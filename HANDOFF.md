@@ -4412,3 +4412,6 @@ fluxos de foto: a linha de base guiada e uma foto avulsa opcional.
   equivalente no desktop, duas ou uma coluna no espaço reduzido, sem tamanhos definidos pelo
   comprimento de cada rótulo.
 - Verificado: `npx tsc --noEmit`, `npx expo export --platform web` e `git diff --check` passam.
+- **Publicado e commitado:** `1001ae9 fix: unifica fotos e grade da anamnese`, enviado para
+  `origin/main`. EAS Hosting e Vercel publicados; os dois endereços públicos responderam HTTP
+  200 após o deploy.
