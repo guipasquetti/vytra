@@ -4448,3 +4448,5 @@ que a pessoa alcance o obturador depois de se posicionar.
 - **Publicado e commitado:** `15c848c feat: adiciona timer na câmera guiada`, enviado para
   `origin/main`. EAS Hosting e Vercel publicados; ambos os endereços públicos responderam HTTP
   200 após o deploy.
+- **Configuração publicada:** `c297a35 feat: permite escolher timer da câmera` adicionou 3s,
+  5s e 10s; EAS Hosting e Vercel responderam HTTP 200 após o deploy.
