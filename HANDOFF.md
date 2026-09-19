@@ -1,8 +1,8 @@
 # Vytra — Handoff
 
 > Documento de contexto para replicar o estado do projeto em outro chat.
-> Última atualização: 19/Setembro/2026 — §62: seleção correta de silhueta por sexo; antes disso,
-> §61: uma única captura de foto e grade responsiva; §60: campos estruturados da anamnese e
+> Última atualização: 19/Setembro/2026 — §63: timer da câmera guiada; antes disso, §62:
+> seleção correta de silhueta por sexo; §61: uma única captura de foto e grade responsiva; §60: campos estruturados da anamnese e
 > rotina semanal. §59: foto opcional na anamnese + autosave em tempo real
 > (rascunho no servidor, indicador animado com o mark da Vytra), migração aplicada em produção,
 > código no disco sem commit. Antes disso, §58: catálogo de profissões + registros 1:N por
@@ -4432,3 +4432,15 @@ como `Masculino`, `homem` e `M`.
 - **Publicado e commitado:** `34cf86f fix: normaliza silhueta por sexo`, enviado para
   `origin/main`. EAS Hosting e Vercel publicados; ambos os endereços públicos responderam HTTP
   200 após o deploy.
+
+## 63. Timer na câmera guiada (19/set)
+
+✅ **Pedido do Guilherme:** facilitar o registro de fotos de linha de base e check-in sem exigir
+que a pessoa alcance o obturador depois de se posicionar.
+
+- A câmera guiada ganhou `Timer 3s`: inicia contagem grande e visível sobre a câmera e tira a
+  foto automaticamente ao final. O mesmo botão vira `Cancelar` durante a contagem; o obturador
+  manual segue disponível e cancela qualquer timer em andamento.
+- Implementado no único componente compartilhado `CameraGuiada`, portanto vale para as quatro
+  poses da linha de base e para o check-in, sem nova permissão, serviço ou dado persistido.
+- Verificado: `npx tsc --noEmit`, `npx expo export --platform web` e `git diff --check` passam.

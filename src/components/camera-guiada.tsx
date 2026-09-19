@@ -1,5 +1,5 @@
 import { CameraView, useCameraPermissions, type CameraType } from 'expo-camera';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Image, Pressable, StyleSheet, View } from 'react-native';
 
 import { Body, Button, Caption } from '@/components/ui';
@@ -37,6 +37,7 @@ export function CameraGuiada({
   const [permissao, solicitarPermissao] = useCameraPermissions();
   const [facing, setFacing] = useState<CameraType>('back');
   const [capturando, setCapturando] = useState(false);
+  const [segundosRestantes, setSegundosRestantes] = useState<number | null>(null);
   const [preview, setPreview] = useState<{ uri: string; format: string } | null>(null);
   const [verReferencia, setVerReferencia] = useState(true);
   const cameraRef = useRef<CameraView>(null);
@@ -51,6 +52,28 @@ export function CameraGuiada({
     } finally {
       setCapturando(false);
     }
+  }
+
+  // O timer é local à câmera: não cria nova permissão nem guarda informação do paciente.
+  // Ao chegar a 1, dispara a mesma rotina do obturador manual para manter qualidade e preview.
+  const capturarRef = useRef(capturar);
+  capturarRef.current = capturar;
+  useEffect(() => {
+    if (segundosRestantes == null) return;
+    const timer = setTimeout(() => {
+      if (segundosRestantes === 1) {
+        setSegundosRestantes(null);
+        void capturarRef.current();
+      } else {
+        setSegundosRestantes((atual) => (atual == null ? null : atual - 1));
+      }
+    }, 1000);
+    return () => clearTimeout(timer);
+  }, [segundosRestantes]);
+
+  function alternarTimer() {
+    if (capturando) return;
+    setSegundosRestantes((atual) => (atual == null ? 3 : null));
   }
 
   function usarFoto() {
@@ -123,15 +146,26 @@ export function CameraGuiada({
 
       <View style={styles.controles}>
         <Button label="Cancelar" variant="ghost" onPress={onCancelar} />
-        <Pressable style={styles.obturador} onPress={capturar} disabled={capturando}>
-          <View style={styles.obturadorMiolo} />
-        </Pressable>
+        <View style={styles.disparo}>
+          <Pressable style={styles.obturador} onPress={() => { setSegundosRestantes(null); void capturar(); }} disabled={capturando} accessibilityLabel="Tirar foto">
+            <View style={styles.obturadorMiolo} />
+          </Pressable>
+          <Pressable style={styles.timerBotao} onPress={alternarTimer} disabled={capturando} accessibilityRole="button" accessibilityLabel={segundosRestantes == null ? 'Iniciar timer de três segundos' : 'Cancelar timer'}>
+            <Caption color={segundosRestantes == null ? Palette.text : Palette.accent}>{segundosRestantes == null ? 'Timer 3s' : 'Cancelar'}</Caption>
+          </Pressable>
+        </View>
         <Button
           label="Virar"
           variant="ghost"
           onPress={() => setFacing((atual) => (atual === 'back' ? 'front' : 'back'))}
         />
       </View>
+      {segundosRestantes != null ? (
+        <View pointerEvents="none" style={styles.contagem}>
+          <Body style={styles.contagemTexto}>{segundosRestantes}</Body>
+          <Caption color={Palette.text}>Prepare-se</Caption>
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -168,6 +202,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: Spacing.lg,
   },
+  disparo: { alignItems: 'center', gap: Spacing.xs },
   obturador: {
     width: 68,
     height: 68,
@@ -183,6 +218,22 @@ const styles = StyleSheet.create({
     borderRadius: 27,
     backgroundColor: Palette.accent,
   },
+  timerBotao: {
+    minWidth: 78,
+    alignItems: 'center',
+    paddingVertical: Spacing.xs,
+  },
+  contagem: {
+    position: 'absolute',
+    top: '38%',
+    alignSelf: 'center',
+    alignItems: 'center',
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.sm,
+    borderRadius: 999,
+    backgroundColor: Palette.background,
+  },
+  contagemTexto: { color: Palette.accent, fontSize: 56, fontWeight: '800', lineHeight: 64 },
   preview: { flex: 1 },
   rodape: {
     flexDirection: 'row',
