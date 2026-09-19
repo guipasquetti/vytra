@@ -4203,3 +4203,9 @@ merge). Migração `20260918_174651_plans_treinos_semana.sql` já estava aplicad
 quando conferi (`information_schema.columns`, coluna `treinos_semana` existe em `plans`) — não
 reapliquei, só commitei o arquivo pra ficar em sincronia com o banco. Se você reabrir esta
 sessão/pasta, `git log` já reflete isso — não precisa recommitar.
+
+✅ **Deploy publicado nos dois hosts (19/set)**: mesmo pipeline de sempre — `npx expo export
+--platform web` → `npx eas deploy --prod` → `npx vercel deploy dist --project vytra-app --prod
+--yes`. Plugin novo `expo-local-authentication` no `app.json` não afetou o export web. Bundle
+`entry-7325104fd121c17464782869e8d1c3f5.js`, conferido por `curl` (body, não só status) nos
+dois: `app-treino.expo.app` e `app.vytraoficial.com.br`, hash igual, ambos 200.
