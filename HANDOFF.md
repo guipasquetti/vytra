@@ -1,7 +1,9 @@
 # Vytra — Handoff
 
 > Documento de contexto para replicar o estado do projeto em outro chat.
-> Última atualização: 19/Setembro/2026 — §59: foto opcional na anamnese + autosave em tempo real
+> Última atualização: 19/Setembro/2026 — §62: seleção correta de silhueta por sexo; antes disso,
+> §61: uma única captura de foto e grade responsiva; §60: campos estruturados da anamnese e
+> rotina semanal. §59: foto opcional na anamnese + autosave em tempo real
 > (rascunho no servidor, indicador animado com o mark da Vytra), migração aplicada em produção,
 > código no disco sem commit. Antes disso, §58: catálogo de profissões + registros 1:N por
 > profissional (migração aplicada em produção, código no disco sem commit, deploy pendente, ver
