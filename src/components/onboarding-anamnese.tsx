@@ -3,6 +3,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { useCallback, useEffect, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
+import { CameraGuiada, type AnguloFoto } from '@/components/camera-guiada';
 import { SaveIndicator, type StatusSalvamento } from '@/components/save-indicator';
 import { Body, Button, Caption, Card, Field, FotoAmpliavel, Pill, Screen, SectionTitle } from '@/components/ui';
 import { supabase } from '@/lib/supabase';
@@ -215,6 +216,28 @@ export function AnamneseFoto({
   );
 }
 
+/** Linha de base visual: mesmas quatro poses e guia do check-in; paths ficam no JSON da anamnese. */
+export function LinhaBaseFotos({ clientId, respostas, onChange, somenteLeitura = false }: { clientId: string; respostas: RespostasAnamnese; onChange: (id: string, valor: string) => void; somenteLeitura?: boolean }) {
+  const [camera, setCamera] = useState<AnguloFoto | null>(null);
+  const [consentiu, setConsentiu] = useState(Boolean(respostas.__consentimento_linha_base));
+  const [urls, setUrls] = useState<Record<string, string>>({});
+  const poses: { tipo: AnguloFoto; label: string }[] = [{ tipo: 'frente', label: 'Frente' }, { tipo: 'esquerdo', label: 'Perfil esquerdo' }, { tipo: 'direito', label: 'Perfil direito' }, { tipo: 'costas', label: 'Costas' }];
+  useEffect(() => { Promise.all(poses.map(async ({ tipo }) => [tipo, await obterUrlFotoAnamnese(respostas[`__linha_base_${tipo}`] ?? '')] as const)).then((itens) => setUrls(Object.fromEntries(itens.filter(([, url]) => url)) as Record<string, string>)); }, [respostas]);
+  async function aceitar() {
+    await supabase.from('consentimentos_imagem').upsert({ client_id: clientId, versao: 'linha-base-v1', texto_hash: 'vytra-linha-base-v1' }, { onConflict: 'client_id,versao' });
+    onChange('__consentimento_linha_base', 'v1'); setConsentiu(true);
+  }
+  async function salvar(tipo: AnguloFoto, arquivo: { uri: string; name: string }) {
+    const caminho = await uploadFotoAnamnese(clientId, { ...arquivo, name: `${tipo}-${arquivo.name}` });
+    onChange(`__linha_base_${tipo}`, caminho);
+  }
+  return <Card><SectionTitle>Fotos de linha de base</SectionTitle>
+    {!consentiu && !somenteLeitura ? <><Caption>Quatro fotos guiadas criam seu ponto de partida. Só você e seu profissional vinculado podem vê-las. Controlador: Guilherme Pasquetti, responsável pela Vytra. Você pode revogar pela área Privacidade do app.</Caption><Button label="Aceitar e registrar consentimento" onPress={aceitar} /></> : null}
+    {consentiu || somenteLeitura ? <View style={styles.fotoBotoes}>{poses.map(({ tipo, label }) => urls[tipo] && somenteLeitura ? <FotoAmpliavel key={tipo} uri={urls[tipo]} width={100} height={140} /> : <Button key={tipo} label={respostas[`__linha_base_${tipo}`] ? `${label} registrada` : `Registrar ${label}`} variant="ghost" onPress={() => setCamera(tipo)} disabled={somenteLeitura} />)}</View> : null}
+    {camera ? <View style={styles.cameraOverlay}><CameraGuiada tipo={camera} onCancelar={() => setCamera(null)} onFoto={async (arquivo) => { const tipo = camera; setCamera(null); await salvar(tipo, arquivo); }} /></View> : null}
+  </Card>;
+}
+
 /**
  * Onboarding dentro do app (§12, 04/set): lead já criou conta e está logado, mas ainda não
  * respondeu a anamnese. `aluno/_layout.tsx` mostra isto no lugar das abas até isso acontecer.
@@ -381,6 +404,8 @@ export function OnboardingAnamnese({ onConcluido }: { onConcluido: () => void })
 
       <AnamneseCampos respostas={respostas} onChange={atualizarResposta} />
 
+      {user ? <LinhaBaseFotos clientId={user.id} respostas={respostas} onChange={atualizarResposta} /> : null}
+
       {user ? (
         <AnamneseFoto clientId={user.id} fotoPath={fotoPath} onFotoChange={setFotoPath} />
       ) : null}
@@ -410,6 +435,7 @@ export function OnboardingAnamnese({ onConcluido }: { onConcluido: () => void })
 }
 
 const styles = StyleSheet.create({
+  cameraOverlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 20 },
   planos: {
     flexDirection: 'row',
     flexWrap: 'wrap',

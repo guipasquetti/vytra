@@ -150,6 +150,7 @@ export type Database = {
           client_id: string
           condicoes_medicas: string
           foto_path: string | null
+          fotos_linha_base: Json
           historico_familiar: string
           lesoes_dores: string
           medicamentos: string
@@ -167,6 +168,7 @@ export type Database = {
           client_id: string
           condicoes_medicas?: string
           foto_path?: string | null
+          fotos_linha_base?: Json
           historico_familiar?: string
           lesoes_dores?: string
           medicamentos?: string
@@ -184,6 +186,7 @@ export type Database = {
           client_id?: string
           condicoes_medicas?: string
           foto_path?: string | null
+          fotos_linha_base?: Json
           historico_familiar?: string
           lesoes_dores?: string
           medicamentos?: string
@@ -209,6 +212,7 @@ export type Database = {
         Row: {
           client_id: string
           foto_path: string | null
+          fotos_linha_base: Json
           plano_id: string | null
           respostas: Json
           updated_at: string
@@ -216,6 +220,7 @@ export type Database = {
         Insert: {
           client_id: string
           foto_path?: string | null
+          fotos_linha_base?: Json
           plano_id?: string | null
           respostas?: Json
           updated_at?: string
@@ -223,6 +228,7 @@ export type Database = {
         Update: {
           client_id?: string
           foto_path?: string | null
+          fotos_linha_base?: Json
           plano_id?: string | null
           respostas?: Json
           updated_at?: string
@@ -506,6 +512,41 @@ export type Database = {
             columns: ["subscription_id"]
             isOneToOne: false
             referencedRelation: "subscriptions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      consentimentos_imagem: {
+        Row: {
+          aceito_em: string
+          client_id: string
+          id: string
+          revogado_em: string | null
+          texto_hash: string
+          versao: string
+        }
+        Insert: {
+          aceito_em?: string
+          client_id: string
+          id?: string
+          revogado_em?: string | null
+          texto_hash: string
+          versao: string
+        }
+        Update: {
+          aceito_em?: string
+          client_id?: string
+          id?: string
+          revogado_em?: string | null
+          texto_hash?: string
+          versao?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "consentimentos_imagem_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]

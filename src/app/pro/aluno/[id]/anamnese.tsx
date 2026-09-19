@@ -2,7 +2,7 @@ import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
 
 import { AlunoTabs } from '@/components/aluno-tabs';
-import { AnamneseCampos, AnamneseFoto } from '@/components/onboarding-anamnese';
+import { AnamneseCampos, AnamneseFoto, LinhaBaseFotos } from '@/components/onboarding-anamnese';
 import { Button, Caption, Card, Loading, Screen } from '@/components/ui';
 import type { RespostasAnamnese } from '@/models/anamnese';
 import {
@@ -106,6 +106,7 @@ export default function AnamnesePacienteScreen() {
         </Card>
       )}
       <AnamneseCampos respostas={respostas} onChange={atualizarResposta} />
+      <LinhaBaseFotos clientId={clientId!} respostas={respostas} onChange={atualizarResposta} somenteLeitura />
       <AnamneseFoto clientId={clientId!} fotoPath={fotoPath} somenteLeitura />
       {erro ? <Caption color={Palette.danger}>{erro}</Caption> : null}
       <Button label="Salvar" onPress={salvar} loading={salvando} />
