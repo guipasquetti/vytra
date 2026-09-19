@@ -4438,9 +4438,10 @@ como `Masculino`, `homem` e `M`.
 ✅ **Pedido do Guilherme:** facilitar o registro de fotos de linha de base e check-in sem exigir
 que a pessoa alcance o obturador depois de se posicionar.
 
-- A câmera guiada ganhou `Timer 3s`: inicia contagem grande e visível sobre a câmera e tira a
-  foto automaticamente ao final. O mesmo botão vira `Cancelar` durante a contagem; o obturador
-  manual segue disponível e cancela qualquer timer em andamento.
+- A câmera guiada ganhou timer configurável: ao tocar em `Timer`, a pessoa escolhe **3s, 5s ou
+  10s**, vê uma contagem grande sobre a câmera e a foto é tirada automaticamente ao final. O
+  botão vira `Cancelar` durante a contagem; o obturador manual segue disponível e cancela
+  qualquer timer em andamento.
 - Implementado no único componente compartilhado `CameraGuiada`, portanto vale para as quatro
   poses da linha de base e para o check-in, sem nova permissão, serviço ou dado persistido.
 - Verificado: `npx tsc --noEmit`, `npx expo export --platform web` e `git diff --check` passam.

@@ -7,6 +7,7 @@ import { ModeloReferenciaFoto, SilhuetaGuia } from '@/components/silhuetas-check
 import { Palette, Spacing } from '@/theme';
 
 export type AnguloFoto = 'frente' | 'esquerdo' | 'direito' | 'costas';
+type DuracaoTimer = 3 | 5 | 10;
 
 const ROTULO: Record<AnguloFoto, { titulo: string; instrucao: string }> = {
   frente: { titulo: 'Frente', instrucao: 'Fique de frente pra câmera' },
@@ -38,6 +39,8 @@ export function CameraGuiada({
   const [facing, setFacing] = useState<CameraType>('back');
   const [capturando, setCapturando] = useState(false);
   const [segundosRestantes, setSegundosRestantes] = useState<number | null>(null);
+  const [duracaoTimer, setDuracaoTimer] = useState<DuracaoTimer>(3);
+  const [escolhendoTimer, setEscolhendoTimer] = useState(false);
   const [preview, setPreview] = useState<{ uri: string; format: string } | null>(null);
   const [verReferencia, setVerReferencia] = useState(true);
   const cameraRef = useRef<CameraView>(null);
@@ -71,9 +74,19 @@ export function CameraGuiada({
     return () => clearTimeout(timer);
   }, [segundosRestantes]);
 
-  function alternarTimer() {
+  function abrirOuCancelarTimer() {
     if (capturando) return;
-    setSegundosRestantes((atual) => (atual == null ? 3 : null));
+    if (segundosRestantes != null) {
+      setSegundosRestantes(null);
+      return;
+    }
+    setEscolhendoTimer((atual) => !atual);
+  }
+
+  function iniciarTimer(duracao: DuracaoTimer) {
+    setDuracaoTimer(duracao);
+    setEscolhendoTimer(false);
+    setSegundosRestantes(duracao);
   }
 
   function usarFoto() {
@@ -147,11 +160,11 @@ export function CameraGuiada({
       <View style={styles.controles}>
         <Button label="Cancelar" variant="ghost" onPress={onCancelar} />
         <View style={styles.disparo}>
-          <Pressable style={styles.obturador} onPress={() => { setSegundosRestantes(null); void capturar(); }} disabled={capturando} accessibilityLabel="Tirar foto">
+          <Pressable style={styles.obturador} onPress={() => { setSegundosRestantes(null); setEscolhendoTimer(false); void capturar(); }} disabled={capturando} accessibilityLabel="Tirar foto">
             <View style={styles.obturadorMiolo} />
           </Pressable>
-          <Pressable style={styles.timerBotao} onPress={alternarTimer} disabled={capturando} accessibilityRole="button" accessibilityLabel={segundosRestantes == null ? 'Iniciar timer de três segundos' : 'Cancelar timer'}>
-            <Caption color={segundosRestantes == null ? Palette.text : Palette.accent}>{segundosRestantes == null ? 'Timer 3s' : 'Cancelar'}</Caption>
+          <Pressable style={styles.timerBotao} onPress={abrirOuCancelarTimer} disabled={capturando} accessibilityRole="button" accessibilityLabel={segundosRestantes == null ? 'Escolher duração do timer' : 'Cancelar timer'}>
+            <Caption color={segundosRestantes == null ? Palette.text : Palette.accent}>{segundosRestantes == null ? `Timer ${duracaoTimer}s` : 'Cancelar'}</Caption>
           </Pressable>
         </View>
         <Button
@@ -160,6 +173,20 @@ export function CameraGuiada({
           onPress={() => setFacing((atual) => (atual === 'back' ? 'front' : 'back'))}
         />
       </View>
+      {escolhendoTimer ? (
+        <View style={styles.opcoesTimer} accessibilityLabel="Escolha o tempo do timer">
+          {([3, 5, 10] as DuracaoTimer[]).map((duracao) => (
+            <Pressable
+              key={duracao}
+              onPress={() => iniciarTimer(duracao)}
+              style={[styles.opcaoTimer, duracao === duracaoTimer && styles.opcaoTimerAtiva]}
+              accessibilityRole="button"
+              accessibilityLabel={`Timer de ${duracao} segundos`}>
+              <Caption color={duracao === duracaoTimer ? Palette.accent : Palette.text}>{duracao}s</Caption>
+            </Pressable>
+          ))}
+        </View>
+      ) : null}
       {segundosRestantes != null ? (
         <View pointerEvents="none" style={styles.contagem}>
           <Body style={styles.contagemTexto}>{segundosRestantes}</Body>
@@ -223,6 +250,24 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: Spacing.xs,
   },
+  opcoesTimer: {
+    position: 'absolute',
+    bottom: Spacing.xl + 110,
+    alignSelf: 'center',
+    flexDirection: 'row',
+    gap: Spacing.xs,
+    padding: Spacing.xs,
+    borderRadius: 999,
+    backgroundColor: Palette.surface,
+  },
+  opcaoTimer: {
+    minWidth: 52,
+    alignItems: 'center',
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: Spacing.xs,
+    borderRadius: 999,
+  },
+  opcaoTimerAtiva: { borderWidth: 1, borderColor: Palette.accent },
   contagem: {
     position: 'absolute',
     top: '38%',
