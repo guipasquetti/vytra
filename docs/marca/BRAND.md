@@ -189,6 +189,9 @@ Fecho para o profissional: "o critério que você já tem, sem o trabalho que te
   pra prescrever dieta").
 - Nunca emoji atrelado à marca. Se um dia houver base de ícones própria, ela substitui o
   papel que o emoji ocuparia.
+- Toda comunicação pública, produto e interface falam em nome da **Vytra**. Nunca expor o
+  nome do fundador/responsável nesses contextos; identificação pessoal só cabe, se necessária,
+  em documentação contratual privada e transitória até a formalização da empresa.
 
 Ideia central dos dois discursos de marca: o plano se adapta à pessoa, não o contrário. Isso
 reformula a tentativa anterior que não deu certo como falha do método, e usa isso como prova
