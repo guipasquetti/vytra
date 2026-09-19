@@ -218,6 +218,7 @@ export function AnamneseFoto({
 
 /** Linha de base visual: mesmas quatro poses e guia do check-in; paths ficam no JSON da anamnese. */
 export function LinhaBaseFotos({ clientId, respostas, onChange, somenteLeitura = false }: { clientId: string; respostas: RespostasAnamnese; onChange: (id: string, valor: string) => void; somenteLeitura?: boolean }) {
+  const sexo = useAuthStore((store) => store.profile?.sexo);
   const [camera, setCamera] = useState<AnguloFoto | null>(null);
   const [abrirCamera, setAbrirCamera] = useState(false);
   const [consentiu, setConsentiu] = useState(Boolean(respostas.__consentimento_linha_base));
@@ -238,7 +239,7 @@ export function LinhaBaseFotos({ clientId, respostas, onChange, somenteLeitura =
     {!consentiu && !somenteLeitura ? <><Caption>Quatro fotos guiadas criam seu ponto de partida. Só você e seu profissional vinculado podem vê-las. Você pode revogar esse consentimento pela área Privacidade do app Vytra.</Caption><Button label="Aceitar e registrar consentimento" onPress={aceitar} /></> : null}
     {consentiu || somenteLeitura ? <View style={styles.fotoBotoes}>{poses.map(({ tipo, label }) => urls[tipo] && somenteLeitura ? <FotoAmpliavel key={tipo} uri={urls[tipo]} width={100} height={140} /> : <Button key={tipo} label={respostas[`__linha_base_${tipo}`] ? `${label} registrada` : `Registrar ${label}`} variant="ghost" onPress={() => { setAbrirCamera(false); setCamera(tipo); }} disabled={somenteLeitura} />)}</View> : null}
     <Modal visible={Boolean(camera)} animationType="slide" onRequestClose={() => setCamera(null)}>
-      {camera && abrirCamera ? <CameraGuiada tipo={camera} onCancelar={() => setCamera(null)} onFoto={async (arquivo) => { const tipo = camera; setCamera(null); await salvar(tipo, arquivo); }} /> : <Screen title="Adicionar foto" subtitle="Escolha como registrar esta pose" scroll={false}><Card><Button label="Tirar foto" onPress={() => setAbrirCamera(true)} /><Button label="Escolher da galeria" variant="ghost" onPress={galeria} /><Button label="Cancelar" variant="ghost" onPress={() => setCamera(null)} /></Card></Screen>}
+      {camera && abrirCamera ? <CameraGuiada tipo={camera} sexo={sexo} onCancelar={() => setAbrirCamera(false)} onFoto={async (arquivo) => { const tipo = camera; setCamera(null); await salvar(tipo, arquivo); }} /> : <Screen title="Adicionar foto" subtitle="Escolha como registrar esta pose" scroll={false}><Card><Button label="Tirar foto" onPress={() => setAbrirCamera(true)} /><Button label="Escolher da galeria" variant="ghost" onPress={galeria} /><Button label="Cancelar" variant="ghost" onPress={() => setCamera(null)} /></Card></Screen>}
     </Modal>
   </Card>;
 }

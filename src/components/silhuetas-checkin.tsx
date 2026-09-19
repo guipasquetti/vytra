@@ -85,13 +85,13 @@ export function ModeloReferenciaFoto({
 
 const styles = StyleSheet.create({
   modelo: {
-    width: 214,
-    height: 330,
+    width: 280,
+    height: 440,
     opacity: 0.72,
   },
   referencia: {
-    width: 244,
-    height: 366,
+    width: 300,
+    height: 480,
   },
   espelhado: {
     transform: [{ scaleX: -1 }],
