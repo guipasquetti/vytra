@@ -3,7 +3,7 @@
 > Documento de contexto para replicar o estado do projeto em outro chat.
 > Última atualização: 21/Setembro/2026 — §65: reedição do paciente volta a mostrar a linha de
 > base + comparativo "primeira x mais recente" (tabela `linha_base_historico` nova, aplicada em
-> produção), código no disco sem commit, deploy pendente. Antes disso, §64: análise de IA na
+> produção), commitado, publicado e enviado ao GitHub. Antes disso, §64: análise de IA na
 > linha de base da anamnese (reconciliada com o redesenho de 4 poses do §61), migração e edge
 > function aplicadas em produção, commitado, publicado e enviado ao GitHub. Antes disso, §63:
 > timer da câmera guiada; §62:
@@ -4565,4 +4565,9 @@ fotos — mesma ideia do "antes x depois" que o check-in já tem (`obterComparac
   (`expo start --web` via `preview_start`): tela de login renderiza normal, sem erro no console.
   **Não testado logado** — sem credencial de teste pra abrir a tela real com paciente/
   profissional vinculados.
-- **Deploy: pendente.**
+- ✅ **Commitado e publicado (21/set):** `7245fec feat: comparativo de linha de base e reedição
+  de fotos do aluno`, enviado para `origin/main`. Pipeline de sempre: `npx expo export
+  --platform web` → `npx eas deploy --prod` → `npx vercel deploy dist --project vytra-app --prod
+  --yes`. Bundle `entry-d1900a2066119718104dbe91962fc94a.js`, conferido por `curl` (status, hash
+  igual pelo nome do arquivo) nos dois: `app-treino.expo.app` e `app.vytraoficial.com.br`, ambos
+  200.
