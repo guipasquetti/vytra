@@ -60,7 +60,7 @@ export type Database = {
         Row: {
           client_id: string
           created_at: string
-          foto_path: string
+          fotos: Json
           indicadores: Json
           resumo: string
           updated_at: string
@@ -68,7 +68,7 @@ export type Database = {
         Insert: {
           client_id: string
           created_at?: string
-          foto_path: string
+          fotos?: Json
           indicadores?: Json
           resumo: string
           updated_at?: string
@@ -76,7 +76,7 @@ export type Database = {
         Update: {
           client_id?: string
           created_at?: string
-          foto_path?: string
+          fotos?: Json
           indicadores?: Json
           resumo?: string
           updated_at?: string

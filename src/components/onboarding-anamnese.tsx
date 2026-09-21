@@ -9,7 +9,14 @@ import { SaveIndicator, type StatusSalvamento } from '@/components/save-indicato
 import { Body, Button, Caption, Card, Field, FotoAmpliavel, Pill, Screen, SectionTitle } from '@/components/ui';
 import { supabase } from '@/lib/supabase';
 import { calcularMediaSono, SECOES_ANAMNESE, type CampoAnamnese, type RespostasAnamnese } from '@/models/anamnese';
-import { obterUrlFotoAnamnese, uploadFotoAnamnese } from '@/services/anamneseService';
+import {
+  dispararAnaliseFotoAnamnese,
+  obterAnaliseFotoAnamnese,
+  obterUrlFotoAnamnese,
+  uploadFotoAnamnese,
+  type AnaliseFotoAnamnese,
+  type FotosLinhaBaseAnamnese,
+} from '@/services/anamneseService';
 import { listarMeusProfissionais, listarPlanos, type PlanoProfissional } from '@/services/professionalService';
 import {
   obterRascunhoAnamnese,
@@ -127,7 +134,21 @@ export function AnamneseCampos({
   );
 }
 
-/** Linha de base visual: mesmas quatro poses e guia do check-in; paths ficam no JSON da anamnese. */
+/** Extrai o conjunto atual de caminhos da linha de base a partir das respostas — mesmas 4
+ * chaves usadas por `LinhaBaseFotos` (`__linha_base_frente/esquerdo/direito/costas`). */
+function extrairFotosLinhaBase(respostas: RespostasAnamnese): FotosLinhaBaseAnamnese {
+  return {
+    frente: respostas.__linha_base_frente || undefined,
+    esquerdo: respostas.__linha_base_esquerdo || undefined,
+    direito: respostas.__linha_base_direito || undefined,
+    costas: respostas.__linha_base_costas || undefined,
+  };
+}
+
+/** Linha de base visual: mesmas quatro poses e guia do check-in; paths ficam no JSON da anamnese.
+ * Ganhou análise automática por IA (21/set, pedido explícito do Guilherme: "como as do
+ * check-in", §56) — mesmo padrão multi-ângulo, resultado só aparece no modo `somenteLeitura`
+ * (visão do profissional), nunca pro próprio paciente. */
 export function LinhaBaseFotos({ clientId, respostas, onChange, somenteLeitura = false }: { clientId: string; respostas: RespostasAnamnese; onChange: (id: string, valor: string) => void; somenteLeitura?: boolean }) {
   const sexoPerfil = useAuthStore((store) => store.profile?.sexo);
   // No onboarding, a escolha recém-feita ainda não foi persistida em `profile`; usar a
@@ -137,9 +158,20 @@ export function LinhaBaseFotos({ clientId, respostas, onChange, somenteLeitura =
   const [abrirCamera, setAbrirCamera] = useState(false);
   const [consentiu, setConsentiu] = useState(Boolean(respostas.__consentimento_linha_base));
   const [urls, setUrls] = useState<Record<string, string>>({});
+  const [analise, setAnalise] = useState<AnaliseFotoAnamnese | null>(null);
   const poses: { tipo: AnguloFoto; label: string }[] = [{ tipo: 'frente', label: 'Frente' }, { tipo: 'esquerdo', label: 'Perfil esquerdo' }, { tipo: 'direito', label: 'Perfil direito' }, { tipo: 'costas', label: 'Costas' }];
   useEffect(() => { Promise.all(poses.map(async ({ tipo }) => [tipo, await obterUrlFotoAnamnese(respostas[`__linha_base_${tipo}`] ?? '')] as const)).then((itens) => setUrls(Object.fromEntries(itens.filter(([, url]) => url)) as Record<string, string>)); }, [respostas]);
   useEffect(() => { if (!somenteLeitura) supabase.from('consentimentos_imagem').select('revogado_em').eq('client_id', clientId).eq('versao', 'linha-base-v1').maybeSingle().then(({ data }) => { if (data && !data.revogado_em) setConsentiu(true); }); }, [clientId, somenteLeitura]);
+  // Análise só é buscada (e mostrada) no modo somenteLeitura — é a visão do profissional; o
+  // paciente nunca lê isso (RLS de `analise_foto_anamnese` já bloqueia, nem tenta buscar aqui).
+  const fotosAtuais = extrairFotosLinhaBase(respostas);
+  useEffect(() => {
+    let cancelado = false;
+    (somenteLeitura ? obterAnaliseFotoAnamnese(clientId) : Promise.resolve(null))
+      .then((a) => { if (!cancelado) setAnalise(a); })
+      .catch(() => { if (!cancelado) setAnalise(null); });
+    return () => { cancelado = true; };
+  }, [somenteLeitura, clientId, fotosAtuais.frente, fotosAtuais.esquerdo, fotosAtuais.direito, fotosAtuais.costas]);
   async function aceitar() {
     await supabase.from('consentimentos_imagem').upsert({ client_id: clientId, versao: 'linha-base-v1', texto_hash: 'vytra-linha-base-v1' }, { onConflict: 'client_id,versao' });
     onChange('__consentimento_linha_base', 'v1'); setConsentiu(true);
@@ -147,11 +179,25 @@ export function LinhaBaseFotos({ clientId, respostas, onChange, somenteLeitura =
   async function salvar(tipo: AnguloFoto, arquivo: { uri: string; name: string }) {
     const caminho = await uploadFotoAnamnese(clientId, { ...arquivo, name: `${tipo}-${arquivo.name}` });
     onChange(`__linha_base_${tipo}`, caminho);
+    dispararAnaliseFotoAnamnese({ ...fotosAtuais, [tipo]: caminho });
   }
   async function galeria() { if (!camera) return; const r = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.8 }); if (!r.canceled && r.assets?.[0]) { const tipo = camera; setCamera(null); await salvar(tipo, { uri: r.assets[0].uri, name: r.assets[0].fileName ?? `${tipo}.jpg` }); } }
   return <Card><SectionTitle>Fotos de linha de base</SectionTitle>
     {!consentiu && !somenteLeitura ? <><Caption>Quatro fotos guiadas criam seu ponto de partida. Só você e seu profissional vinculado podem vê-las. Você pode revogar esse consentimento pela área Privacidade do app Vytra.</Caption><Button label="Aceitar e registrar consentimento" onPress={aceitar} /></> : null}
     {consentiu || somenteLeitura ? <View style={styles.fotoBotoes}>{poses.map(({ tipo, label }) => urls[tipo] && somenteLeitura ? <FotoAmpliavel key={tipo} uri={urls[tipo]} width={100} height={140} /> : <Button key={tipo} label={respostas[`__linha_base_${tipo}`] ? `${label} registrada` : `Registrar ${label}`} variant="ghost" style={styles.acaoGrade} onPress={() => { setAbrirCamera(false); setCamera(tipo); }} disabled={somenteLeitura} />)}</View> : null}
+    {somenteLeitura ? (
+      analise ? (
+        <View style={styles.analiseBox}>
+          <Caption color={Palette.accent}>Análise de IA</Caption>
+          <Body>{analise.resumo}</Body>
+          {analise.indicadores.map((ind, i) => (
+            <Caption key={i}>{ind.rotulo}: {ind.observacao}</Caption>
+          ))}
+        </View>
+      ) : Object.keys(urls).length ? (
+        <Caption color={Palette.textTertiary} style={styles.analiseBox}>Sem análise de IA pra estas fotos ainda.</Caption>
+      ) : null
+    ) : null}
     <Modal visible={Boolean(camera)} animationType="slide" onRequestClose={() => setCamera(null)}>
       {camera && abrirCamera ? <CameraGuiada tipo={camera} sexo={sexo} onCancelar={() => setAbrirCamera(false)} onFoto={async (arquivo) => { const tipo = camera; setCamera(null); await salvar(tipo, arquivo); }} /> : <Screen title="Adicionar foto" subtitle="Escolha como registrar esta pose" scroll={false}><Card><Button label="Tirar foto" onPress={() => setAbrirCamera(true)} /><Button label="Escolher da galeria" variant="ghost" onPress={galeria} /><Button label="Cancelar" variant="ghost" onPress={() => setCamera(null)} /></Card></Screen>}
     </Modal>
@@ -397,4 +443,8 @@ const styles = StyleSheet.create({
     gap: Spacing.sm,
   },
   acaoGrade: { flexGrow: 1, flexBasis: 180 },
+  analiseBox: {
+    gap: Spacing.xs,
+    marginTop: Spacing.sm,
+  },
 });

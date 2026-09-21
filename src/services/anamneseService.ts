@@ -26,25 +26,11 @@ export async function obterAnamnese(clientId: string): Promise<AnamneseCompleta 
 }
 
 /**
- * Dispara (fire-and-forget, nunca trava o upload) a análise por IA da foto recém-enviada —
- * mesmo padrão de `dispararAnaliseFotosCheckin` em `checkinService.ts` (§56), agora também pra
- * foto da anamnese (19/set). Reanalisa sempre que a foto trocar (upsert por `client_id` na
- * edge function, não série histórica: a anamnese só tem 1 foto "atual").
- */
-function dispararAnaliseFotoAnamnese(fotoPath: string): void {
-  supabase.functions.invoke('analyze-anamnese-photo', { body: { fotoPath } }).catch(() => {
-    // Nunca deveria travar o upload da foto por causa da análise — se falhar, o profissional só
-    // não vê a análise de IA pra essa foto.
-  });
-}
-
-/**
- * Foto opcional anexada na anamnese (19/set, pedido do Guilherme) — bucket privado próprio
- * (`fotos-anamnese`), mesmo padrão de `uploadFotoCheckin`/`obterUrlFotoCheckin` em
- * `checkinService.ts`: caminho sempre prefixado pelo uid do próprio paciente. Dispara análise
- * automática por IA (mesma ideia do §56, fotos de check-in) — resultado só pro profissional ler,
- * nunca pro paciente (lente LGPD do §0: foto de corpo é dado sensível; ver nota de transferência
- * internacional na migração `20260919_analise_ia_foto_anamnese.sql`).
+ * Foto anexada na anamnese — bucket privado próprio (`fotos-anamnese`), mesmo padrão de
+ * `uploadFotoCheckin`/`obterUrlFotoCheckin` em `checkinService.ts`: caminho sempre prefixado
+ * pelo uid do próprio paciente. Usada pelas 4 poses da linha de base (`LinhaBaseFotos`, §61) —
+ * quem dispara a análise de IA é o chamador (`dispararAnaliseFotoAnamnese`, abaixo), porque só
+ * ele conhece o conjunto atual das 4 fotos, não só a que acabou de subir.
  */
 export async function uploadFotoAnamnese(
   clientId: string,
@@ -58,7 +44,6 @@ export async function uploadFotoAnamnese(
     .from('fotos-anamnese')
     .upload(caminho, blob, { contentType: blob.type || undefined });
   if (error) throw error;
-  dispararAnaliseFotoAnamnese(caminho);
   return caminho;
 }
 
@@ -68,28 +53,51 @@ export async function obterUrlFotoAnamnese(caminho: string): Promise<string | nu
   return data?.signedUrl ?? null;
 }
 
+export type FotosLinhaBaseAnamnese = {
+  frente?: string;
+  esquerdo?: string;
+  direito?: string;
+  costas?: string;
+};
+
+/**
+ * Dispara (fire-and-forget, nunca trava o upload) a análise por IA do CONJUNTO atual de fotos
+ * de linha de base — mesmo padrão de `dispararAnaliseFotosCheckin` em `checkinService.ts`
+ * (§56), adaptado pras 4 poses da anamnese (§61, pedido do Guilherme: "como as do check-in").
+ * Reanalisa o conjunto inteiro a cada foto nova/trocada (upsert por `client_id` na edge
+ * function, não série histórica: a anamnese tem só uma linha de base, não uma série ao longo do
+ * tempo como o check-in).
+ */
+export function dispararAnaliseFotoAnamnese(fotos: FotosLinhaBaseAnamnese): void {
+  if (!fotos.frente && !fotos.esquerdo && !fotos.direito && !fotos.costas) return;
+  supabase.functions.invoke('analyze-anamnese-photo', { body: { fotos } }).catch(() => {
+    // Nunca deveria travar o upload da foto por causa da análise — se falhar, o profissional só
+    // não vê a análise de IA pra esse conjunto.
+  });
+}
+
 export type IndicadorAnaliseFotoAnamnese = { rotulo: string; observacao: string };
 export type AnaliseFotoAnamnese = {
-  fotoPath: string;
+  fotos: FotosLinhaBaseAnamnese;
   resumo: string;
   indicadores: IndicadorAnaliseFotoAnamnese[];
 };
 
 /**
- * Análise de IA da foto da anamnese, se já tiver rodado (background, pode demorar alguns
- * segundos após o upload) — RLS só libera pro profissional vinculado (`is_professional_of`),
- * nunca pro próprio paciente (mesmo padrão de `listarAnalisesFotos` em `checkinService.ts`).
+ * Análise de IA da linha de base, se já tiver rodado (background, pode demorar alguns segundos
+ * após o upload) — RLS só libera pro profissional vinculado (`is_professional_of`), nunca pro
+ * próprio paciente (mesmo padrão de `listarAnalisesFotos` em `checkinService.ts`).
  */
 export async function obterAnaliseFotoAnamnese(clientId: string): Promise<AnaliseFotoAnamnese | null> {
   const { data, error } = await supabase
     .from('analise_foto_anamnese')
-    .select('foto_path, resumo, indicadores')
+    .select('fotos, resumo, indicadores')
     .eq('client_id', clientId)
     .maybeSingle();
   if (error) throw error;
   if (!data) return null;
   return {
-    fotoPath: data.foto_path,
+    fotos: (data.fotos ?? {}) as FotosLinhaBaseAnamnese,
     resumo: data.resumo,
     indicadores: (data.indicadores ?? []) as IndicadorAnaliseFotoAnamnese[],
   };

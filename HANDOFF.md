@@ -1,13 +1,14 @@
 # Vytra — Handoff
 
 > Documento de contexto para replicar o estado do projeto em outro chat.
-> Última atualização: 19/Setembro/2026 — §63: timer da câmera guiada; antes disso, §62:
+> Última atualização: 21/Setembro/2026 — §64: análise de IA na linha de base da anamnese
+> (reconciliada com o redesenho de 4 poses do §61), migração e edge function aplicadas em
+> produção, commit feito, deploy no app pendente. Antes disso, §63: timer da câmera guiada; §62:
 > seleção correta de silhueta por sexo; §61: uma única captura de foto e grade responsiva; §60: campos estruturados da anamnese e
 > rotina semanal. §59: foto opcional na anamnese + autosave em tempo real
-> (rascunho no servidor, indicador animado com o mark da Vytra), migração aplicada em produção,
-> código no disco sem commit. Antes disso, §58: catálogo de profissões + registros 1:N por
-> profissional (migração aplicada em produção, código no disco sem commit, deploy pendente, ver
-> checklist no fim do §58) e pasta local
+> (rascunho no servidor, indicador animado com o mark da Vytra), migração aplicada em produção.
+> Antes disso, §58: catálogo de profissões + registros 1:N por
+> profissional e pasta local
 > renomeada para `~/Developer/vytra`. Antes disso, §49 a §57 (ilustrações, voltar em push,
 > máscara de data, reenvio de anamnese, fotos de check-in com IA, ajustes de treino do aluno).
 
@@ -4450,3 +4451,70 @@ que a pessoa alcance o obturador depois de se posicionar.
   200 após o deploy.
 - **Configuração publicada:** `c297a35 feat: permite escolher timer da câmera` adicionou 3s,
   5s e 10s; EAS Hosting e Vercel responderam HTTP 200 após o deploy.
+
+## 64. Análise de IA na linha de base da anamnese, adaptada ao redesenho do §61 (21/set)
+
+✅ **Pedido do Guilherme:** garantir que a linha de base da anamnese tem análise de IA "como as
+do check-in" (§56).
+
+⚠️ **Nota pra quem reabrir esta sessão/pasta:** eu (Claude) tinha implementado essa análise em
+19/set (§59) sobre o desenho de FOTO ÚNICA opcional que existia então — migração
+`20260919_analise_ia_foto_anamnese.sql`, edge function `analyze-anamnese-photo`, tudo commitado
+no mesmo commit que publicou o §58/§59 (`4b0da2a feat: publica anamnese e registros
+profissionais`). Entre uma resposta e outra desta conversa, o Codex redesenhou a foto da
+anamnese pro modelo de **linha de base de 4 poses guiadas** (§61, mesmas silhuetas do check-in,
+componente `LinhaBaseFotos` substituiu o antigo `AnamneseFoto`) — e nenhum dos commits
+posteriores (`5657599`…`c297a35`) tocou a análise de IA, então ela ficou órfã: a UI que exibia
+o resultado pro profissional (dentro do antigo `AnamneseFoto`) foi removida junto com o
+componente, e a função só analisava 1 foto isolada — não o conjunto de 4 poses. Reabri a sessão
+já com essas mudanças no disco (outros commits, HANDOFF já citando §60-§63); esta seção documenta
+o que fiz pra reconciliar, não uma feature nova do zero.
+
+- **Migração** [`20260921_analise_foto_anamnese_conjunto.sql`](supabase/migrations/20260921_analise_foto_anamnese_conjunto.sql),
+  **aplicada em produção**: `analise_foto_anamnese` trocou a coluna única `foto_path` por
+  `fotos jsonb` — guarda o conjunto `{frente, esquerdo, direito, costas}` analisado junto, mesmo
+  espírito de `analises_fotos_checkin` (§56): uma análise por conjunto, não por ângulo isolado.
+  Tabela estava vazia em produção (a feature nunca rodou de verdade — sign-off LGPD do §56
+  seguia pendente), seguro trocar sem backfill. `get_advisors(security)` depois: sem achado novo.
+- **Edge function** [`analyze-anamnese-photo`](supabase/functions/analyze-anamnese-photo/index.ts)
+  reescrita pro formato multi-ângulo (mesmo padrão de `ANGULOS`/`baixarEcodificar` de
+  `analyze-checkin-photos`): recebe `{ fotos: { frente?, esquerdo?, direito?, costas? } }`,
+  autorização confere que cada caminho pertence ao `auth.uid()` de quem chamou (o bucket já é
+  prefixado por uid, então essa é a checagem inteira — sem RLS extra necessária), baixa as fotos
+  presentes, manda todas juntas num só bloco de conteúdo pro Sonnet com tool forçada
+  (`emitir_analise_foto_anamnese`), grava o resultado por upsert (`client_id`). Sem conceito de
+  "conjunto anterior" pra comparar — diferente do check-in, a anamnese tem só uma linha de base,
+  não uma série de envios. **Redeployada em produção** (Supabase MCP, versão 3).
+- **Serviços** (`anamneseService.ts`): `uploadFotoAnamnese` voltou a ser upload puro (não sabe
+  mais o conjunto completo, só o chamador sabe); novo `dispararAnaliseFotoAnamnese(fotos)`
+  exportado (fire-and-forget) chamado pelo `LinhaBaseFotos.salvar()` com o conjunto atual +
+  a foto recém-enviada; `obterAnaliseFotoAnamnese`/`AnaliseFotoAnamnese` agora carregam `fotos`
+  (não mais `fotoPath`).
+- **UI**: `LinhaBaseFotos` (`onboarding-anamnese.tsx`) ganhou de volta a exibição da análise —
+  só no modo `somenteLeitura` (visão do profissional em `pro/aluno/[id]/anamnese.tsx`, que já
+  renderiza `<LinhaBaseFotos somenteLeitura />`), nunca pro paciente. Mostra resumo + indicadores
+  quando a análise da IA já rodou pro conjunto atual, ou "Sem análise de IA pra estas fotos
+  ainda." enquanto não roda/se ainda não há foto.
+- **`database.types.ts` regenerado** (`generate_typescript_types`, Supabase MCP) — reflete a
+  troca de `foto_path` por `fotos` em `analise_foto_anamnese`.
+- **Observação, fora de escopo desta sessão:** `aluno/anamnese.tsx` (reedição da própria
+  anamnese pelo paciente) parou de renderizar `LinhaBaseFotos` em algum commit do §60/§61 — o
+  paciente não consegue mais retirar/trocar as fotos de linha de base depois do onboarding, só
+  o profissional as vê (`somenteLeitura`) em `pro/aluno/[id]/anamnese.tsx`. Não mexi nisso (não
+  foi pedido nesta sessão e não tem relação com a análise de IA), só registro pra não ficar
+  esquecido.
+- ⚠️ **LGPD — mesma pendência do §56, ainda maior aqui:** o conjunto de 4 poses é MAIS dado
+  biométrico por análise (4 imagens, não 1) do que o já registrado no §56/§59. Sign-off do termo
+  de consentimento pra transferência internacional de foto à Anthropic continua pendente antes
+  de qualquer paciente real passar pelas duas telas de análise (check-in e agora também a linha
+  de base da anamnese) — decisão do Guilherme, não travei a implementação por causa disso (ele
+  pediu explicitamente "como as do check-in" nesta sessão).
+- Verificado: `npx tsc --noEmit`, `npx eslint .` (só os erros pré-existentes de sempre nas edge
+  functions com import `npm:` e os 2 avisos/erros do repo já catalogados — nenhum novo desta
+  mudança) e `npx expo export --platform web` limpos.
+- **Não testado logado** — depende de linha de base real enviada por conta de teste (paciente)
+  e leitura pelo profissional vinculado; não disparei a function de verdade com chamada real ao
+  Sonnet (gastaria custo sem paciente de teste pronto).
+- **Deploy pendente (app):** commit feito nesta sessão, mas publicação em `app-treino.expo.app`
+  (EAS Hosting) e `app.vytraoficial.com.br` (Vercel) ainda não confirmada — ver seção de deploy
+  logo abaixo do commit para o hash final.
