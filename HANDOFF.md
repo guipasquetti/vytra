@@ -3,7 +3,7 @@
 > Documento de contexto para replicar o estado do projeto em outro chat.
 > Última atualização: 21/Setembro/2026 — §64: análise de IA na linha de base da anamnese
 > (reconciliada com o redesenho de 4 poses do §61), migração e edge function aplicadas em
-> produção, commit feito, deploy no app pendente. Antes disso, §63: timer da câmera guiada; §62:
+> produção, commitado, publicado e enviado ao GitHub. Antes disso, §63: timer da câmera guiada; §62:
 > seleção correta de silhueta por sexo; §61: uma única captura de foto e grade responsiva; §60: campos estruturados da anamnese e
 > rotina semanal. §59: foto opcional na anamnese + autosave em tempo real
 > (rascunho no servidor, indicador animado com o mark da Vytra), migração aplicada em produção.
@@ -4515,6 +4515,8 @@ o que fiz pra reconciliar, não uma feature nova do zero.
 - **Não testado logado** — depende de linha de base real enviada por conta de teste (paciente)
   e leitura pelo profissional vinculado; não disparei a function de verdade com chamada real ao
   Sonnet (gastaria custo sem paciente de teste pronto).
-- **Deploy pendente (app):** commit feito nesta sessão, mas publicação em `app-treino.expo.app`
-  (EAS Hosting) e `app.vytraoficial.com.br` (Vercel) ainda não confirmada — ver seção de deploy
-  logo abaixo do commit para o hash final.
+- ✅ **Commitado e publicado (21/set):** `e85f854 feat: análise de IA na linha de base da
+  anamnese`, enviado para `origin/main`. Pipeline de sempre: `npx expo export --platform web` →
+  `npx eas deploy --prod` → `npx vercel deploy dist --project vytra-app --prod --yes`. Bundle
+  `entry-67d120cbb6815cd09fe6cb45e84289c0.js`, conferido por `curl` (status, hash igual pelo
+  nome do arquivo) nos dois: `app-treino.expo.app` e `app.vytraoficial.com.br`, ambos 200.
