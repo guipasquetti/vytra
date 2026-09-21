@@ -104,6 +104,92 @@ export async function obterAnaliseFotoAnamnese(clientId: string): Promise<Analis
 }
 
 /**
+ * Grava um snapshot do conjunto atual de fotos de linha de base (21/set, pedido do Guilherme:
+ * comparativo entre as fotos) — chamado a cada envio explícito da anamnese (onboarding ou
+ * "Salvar" na reedição, nunca no autosave de texto). Faz um dedup simples contra o último
+ * snapshot pra não empilhar linha idêntica a cada save sem foto nova. Sem foto nenhuma no
+ * conjunto, não grava nada.
+ */
+export async function registrarSnapshotLinhaBase(
+  clientId: string,
+  fotos: FotosLinhaBaseAnamnese,
+): Promise<void> {
+  if (!fotos.frente && !fotos.esquerdo && !fotos.direito && !fotos.costas) return;
+  const { data: ultimo, error: erroUltimo } = await supabase
+    .from('linha_base_historico')
+    .select('fotos')
+    .eq('client_id', clientId)
+    .order('criado_em', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (erroUltimo) throw erroUltimo;
+  const anterior = (ultimo?.fotos ?? null) as FotosLinhaBaseAnamnese | null;
+  const mudou =
+    !anterior ||
+    anterior.frente !== fotos.frente ||
+    anterior.esquerdo !== fotos.esquerdo ||
+    anterior.direito !== fotos.direito ||
+    anterior.costas !== fotos.costas;
+  if (!mudou) return;
+  const { error } = await supabase.from('linha_base_historico').insert({ client_id: clientId, fotos });
+  if (error) throw error;
+}
+
+const ANGULOS_LINHA_BASE = [
+  { angulo: 'frente', label: 'Frente' },
+  { angulo: 'esquerdo', label: 'Perfil esquerdo' },
+  { angulo: 'direito', label: 'Perfil direito' },
+  { angulo: 'costas', label: 'Costas' },
+] as const;
+
+export type FotoComparacaoLinhaBase = { url: string; data: string };
+export type ComparacaoLinhaBase = {
+  angulo: 'frente' | 'esquerdo' | 'direito' | 'costas';
+  label: string;
+  primeira: FotoComparacaoLinhaBase | null;
+  ultima: FotoComparacaoLinhaBase | null;
+};
+
+/**
+ * Comparativo "primeira x mais recente" da linha de base — mesmo padrão de
+ * `obterComparacaoFotos` em `checkinService.ts` (§9), adaptado pro histórico de snapshots da
+ * anamnese (`linha_base_historico`, acima). Só devolve algo quando há pelo menos 2 snapshots
+ * distintos — 1 só não é comparação. Visível pro próprio paciente (RLS libera) e pro
+ * profissional vinculado, igual ao check-in.
+ */
+export async function obterComparacaoLinhaBase(clientId: string): Promise<ComparacaoLinhaBase[]> {
+  const { data, error } = await supabase
+    .from('linha_base_historico')
+    .select('fotos, criado_em')
+    .eq('client_id', clientId)
+    .order('criado_em', { ascending: true });
+  if (error) throw error;
+  const snapshots = data ?? [];
+  if (snapshots.length < 2) return [];
+
+  const primeiro = snapshots[0];
+  const ultimo = snapshots[snapshots.length - 1];
+
+  const resultado: ComparacaoLinhaBase[] = [];
+  for (const a of ANGULOS_LINHA_BASE) {
+    const pathPrimeira = (primeiro.fotos as FotosLinhaBaseAnamnese)[a.angulo];
+    const pathUltima = (ultimo.fotos as FotosLinhaBaseAnamnese)[a.angulo];
+    if (!pathPrimeira && !pathUltima) continue;
+    const [urlPrimeira, urlUltima] = await Promise.all([
+      pathPrimeira ? obterUrlFotoAnamnese(pathPrimeira) : Promise.resolve(null),
+      pathUltima ? obterUrlFotoAnamnese(pathUltima) : Promise.resolve(null),
+    ]);
+    resultado.push({
+      angulo: a.angulo,
+      label: a.label,
+      primeira: pathPrimeira && urlPrimeira ? { url: urlPrimeira, data: primeiro.criado_em } : null,
+      ultima: pathUltima && urlUltima ? { url: urlUltima, data: ultimo.criado_em } : null,
+    });
+  }
+  return resultado;
+}
+
+/**
  * Profissional pede pro paciente atualizar a anamnese (18/set) — sem chat/notificação no app
  * ainda (§30 do handoff), o pedido fica visível de forma passiva quando o paciente abre a
  * própria anamnese ou o Perfil. Update direto, já liberado pela RLS

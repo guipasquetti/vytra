@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useFocusEffect, useRouter } from 'expo-router';
 
-import { AnamneseCampos } from '@/components/onboarding-anamnese';
+import { AnamneseCampos, extrairFotosLinhaBase, LinhaBaseFotos } from '@/components/onboarding-anamnese';
 import { SaveIndicator, type StatusSalvamento } from '@/components/save-indicator';
 import { Button, Caption, Card, Loading, Screen } from '@/components/ui';
 import type { RespostasAnamnese } from '@/models/anamnese';
-import { obterAnamnese } from '@/services/anamneseService';
+import { obterAnamnese, registrarSnapshotLinhaBase } from '@/services/anamneseService';
 import { submeterAnamneseEPlano } from '@/services/onboardingService';
 import { useAuthStore } from '@/store/authStore';
 import { Palette } from '@/theme';
@@ -84,6 +84,9 @@ export default function AnamneseAlunoScreen() {
         setErro('Não consegui salvar suas respostas. Tenta de novo.');
         return;
       }
+      // Snapshot da linha de base pro comparativo "primeira x mais recente" (21/set) — melhor
+      // esforço, nunca trava o salvamento se falhar.
+      if (user) registrarSnapshotLinhaBase(user.id, extrairFotosLinhaBase(respostas)).catch(() => {});
       router.back();
     } catch (e) {
       setErro(e instanceof Error ? e.message : 'Não consegui salvar suas respostas.');
@@ -113,6 +116,7 @@ export default function AnamneseAlunoScreen() {
         </Card>
       ) : null}
       <AnamneseCampos respostas={respostas} onChange={atualizarResposta} />
+      <LinhaBaseFotos clientId={user.id} respostas={respostas} onChange={atualizarResposta} />
       {erro ? <Caption color={Palette.danger}>{erro}</Caption> : null}
       <Button label="Salvar" onPress={salvar} loading={salvando} />
     </Screen>

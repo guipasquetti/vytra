@@ -12,9 +12,12 @@ import { calcularMediaSono, SECOES_ANAMNESE, type CampoAnamnese, type RespostasA
 import {
   dispararAnaliseFotoAnamnese,
   obterAnaliseFotoAnamnese,
+  obterComparacaoLinhaBase,
   obterUrlFotoAnamnese,
+  registrarSnapshotLinhaBase,
   uploadFotoAnamnese,
   type AnaliseFotoAnamnese,
+  type ComparacaoLinhaBase,
   type FotosLinhaBaseAnamnese,
 } from '@/services/anamneseService';
 import { listarMeusProfissionais, listarPlanos, type PlanoProfissional } from '@/services/professionalService';
@@ -135,8 +138,10 @@ export function AnamneseCampos({
 }
 
 /** Extrai o conjunto atual de caminhos da linha de base a partir das respostas — mesmas 4
- * chaves usadas por `LinhaBaseFotos` (`__linha_base_frente/esquerdo/direito/costas`). */
-function extrairFotosLinhaBase(respostas: RespostasAnamnese): FotosLinhaBaseAnamnese {
+ * chaves usadas por `LinhaBaseFotos` (`__linha_base_frente/esquerdo/direito/costas`). Exportada
+ * pra quem salva a anamnese (`aluno/anamnese.tsx`, `OnboardingAnamnese` abaixo) poder registrar
+ * o snapshot do comparativo sem duplicar a extração. */
+export function extrairFotosLinhaBase(respostas: RespostasAnamnese): FotosLinhaBaseAnamnese {
   return {
     frente: respostas.__linha_base_frente || undefined,
     esquerdo: respostas.__linha_base_esquerdo || undefined,
@@ -159,6 +164,7 @@ export function LinhaBaseFotos({ clientId, respostas, onChange, somenteLeitura =
   const [consentiu, setConsentiu] = useState(Boolean(respostas.__consentimento_linha_base));
   const [urls, setUrls] = useState<Record<string, string>>({});
   const [analise, setAnalise] = useState<AnaliseFotoAnamnese | null>(null);
+  const [comparacao, setComparacao] = useState<ComparacaoLinhaBase[]>([]);
   const poses: { tipo: AnguloFoto; label: string }[] = [{ tipo: 'frente', label: 'Frente' }, { tipo: 'esquerdo', label: 'Perfil esquerdo' }, { tipo: 'direito', label: 'Perfil direito' }, { tipo: 'costas', label: 'Costas' }];
   useEffect(() => { Promise.all(poses.map(async ({ tipo }) => [tipo, await obterUrlFotoAnamnese(respostas[`__linha_base_${tipo}`] ?? '')] as const)).then((itens) => setUrls(Object.fromEntries(itens.filter(([, url]) => url)) as Record<string, string>)); }, [respostas]);
   useEffect(() => { if (!somenteLeitura) supabase.from('consentimentos_imagem').select('revogado_em').eq('client_id', clientId).eq('versao', 'linha-base-v1').maybeSingle().then(({ data }) => { if (data && !data.revogado_em) setConsentiu(true); }); }, [clientId, somenteLeitura]);
@@ -172,6 +178,17 @@ export function LinhaBaseFotos({ clientId, respostas, onChange, somenteLeitura =
       .catch(() => { if (!cancelado) setAnalise(null); });
     return () => { cancelado = true; };
   }, [somenteLeitura, clientId, fotosAtuais.frente, fotosAtuais.esquerdo, fotosAtuais.direito, fotosAtuais.costas]);
+  // Comparativo "primeira x mais recente" (21/set, pedido do Guilherme) — visível tanto pro
+  // paciente quanto pro profissional, mesmo padrão de `obterComparacaoFotos` do check-in. Só
+  // aparece quando já existe mais de um snapshot salvo (`linha_base_historico`); atualiza de
+  // novo quando o próprio conjunto muda, pra refletir um snapshot novo assim que ele é gravado.
+  useEffect(() => {
+    let cancelado = false;
+    obterComparacaoLinhaBase(clientId)
+      .then((c) => { if (!cancelado) setComparacao(c); })
+      .catch(() => { if (!cancelado) setComparacao([]); });
+    return () => { cancelado = true; };
+  }, [clientId, fotosAtuais.frente, fotosAtuais.esquerdo, fotosAtuais.direito, fotosAtuais.costas]);
   async function aceitar() {
     await supabase.from('consentimentos_imagem').upsert({ client_id: clientId, versao: 'linha-base-v1', texto_hash: 'vytra-linha-base-v1' }, { onConflict: 'client_id,versao' });
     onChange('__consentimento_linha_base', 'v1'); setConsentiu(true);
@@ -185,6 +202,20 @@ export function LinhaBaseFotos({ clientId, respostas, onChange, somenteLeitura =
   return <Card><SectionTitle>Fotos de linha de base</SectionTitle>
     {!consentiu && !somenteLeitura ? <><Caption>Quatro fotos guiadas criam seu ponto de partida. Só você e seu profissional vinculado podem vê-las. Você pode revogar esse consentimento pela área Privacidade do app Vytra.</Caption><Button label="Aceitar e registrar consentimento" onPress={aceitar} /></> : null}
     {consentiu || somenteLeitura ? <View style={styles.fotoBotoes}>{poses.map(({ tipo, label }) => urls[tipo] && somenteLeitura ? <FotoAmpliavel key={tipo} uri={urls[tipo]} width={100} height={140} /> : <Button key={tipo} label={respostas[`__linha_base_${tipo}`] ? `${label} registrada` : `Registrar ${label}`} variant="ghost" style={styles.acaoGrade} onPress={() => { setAbrirCamera(false); setCamera(tipo); }} disabled={somenteLeitura} />)}</View> : null}
+    {comparacao.length ? (
+      <View style={styles.analiseBox}>
+        <Caption color={Palette.textTertiary}>Evolução — primeira x mais recente</Caption>
+        {comparacao.map((c) => (
+          <View key={c.angulo} style={styles.comparacaoLinha}>
+            <Caption>{c.label}</Caption>
+            <View style={styles.fotoBotoes}>
+              {c.primeira ? <FotoAmpliavel uri={c.primeira.url} width={100} height={140} /> : null}
+              {c.ultima ? <FotoAmpliavel uri={c.ultima.url} width={100} height={140} /> : null}
+            </View>
+          </View>
+        ))}
+      </View>
+    ) : null}
     {somenteLeitura ? (
       analise ? (
         <View style={styles.analiseBox}>
@@ -345,6 +376,9 @@ export function OnboardingAnamnese({ onConcluido }: { onConcluido: () => void })
         );
         return;
       }
+      // Snapshot da linha de base pro comparativo "primeira x mais recente" (21/set) — melhor
+      // esforço, nunca trava o onboarding se falhar.
+      registrarSnapshotLinhaBase(user.id, extrairFotosLinhaBase(respostas)).catch(() => {});
       const sexoEscolhido = respostas.sexo;
       if (profile && (sexoEscolhido === 'feminino' || sexoEscolhido === 'masculino' || sexoEscolhido === 'outro')) {
         // O banco já foi atualizado pela RPC; espelha no estado local antes de liberar as abas
@@ -446,5 +480,8 @@ const styles = StyleSheet.create({
   analiseBox: {
     gap: Spacing.xs,
     marginTop: Spacing.sm,
+  },
+  comparacaoLinha: {
+    gap: Spacing.xs,
   },
 });

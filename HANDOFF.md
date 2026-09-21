@@ -1,9 +1,12 @@
 # Vytra — Handoff
 
 > Documento de contexto para replicar o estado do projeto em outro chat.
-> Última atualização: 21/Setembro/2026 — §64: análise de IA na linha de base da anamnese
-> (reconciliada com o redesenho de 4 poses do §61), migração e edge function aplicadas em
-> produção, commitado, publicado e enviado ao GitHub. Antes disso, §63: timer da câmera guiada; §62:
+> Última atualização: 21/Setembro/2026 — §65: reedição do paciente volta a mostrar a linha de
+> base + comparativo "primeira x mais recente" (tabela `linha_base_historico` nova, aplicada em
+> produção), código no disco sem commit, deploy pendente. Antes disso, §64: análise de IA na
+> linha de base da anamnese (reconciliada com o redesenho de 4 poses do §61), migração e edge
+> function aplicadas em produção, commitado, publicado e enviado ao GitHub. Antes disso, §63:
+> timer da câmera guiada; §62:
 > seleção correta de silhueta por sexo; §61: uma única captura de foto e grade responsiva; §60: campos estruturados da anamnese e
 > rotina semanal. §59: foto opcional na anamnese + autosave em tempo real
 > (rascunho no servidor, indicador animado com o mark da Vytra), migração aplicada em produção.
@@ -4520,3 +4523,46 @@ o que fiz pra reconciliar, não uma feature nova do zero.
   `npx eas deploy --prod` → `npx vercel deploy dist --project vytra-app --prod --yes`. Bundle
   `entry-67d120cbb6815cd09fe6cb45e84289c0.js`, conferido por `curl` (status, hash igual pelo
   nome do arquivo) nos dois: `app-treino.expo.app` e `app.vytraoficial.com.br`, ambos 200.
+
+## 65. Reedição volta a mostrar a linha de base + comparativo "primeira x mais recente" (21/set)
+
+✅ **Pedido do Guilherme:** corrigir a lacuna registrada no fim do §64 (`aluno/anamnese.tsx`
+parou de mostrar `LinhaBaseFotos` num commit do §60/§61) e implementar um comparativo entre as
+fotos — mesma ideia do "antes x depois" que o check-in já tem (`obterComparacaoFotos`, §9).
+
+- **`aluno/anamnese.tsx`**: voltou a renderizar `<LinhaBaseFotos clientId={user.id} respostas=
+  {respostas} onChange={atualizarResposta} />` (editável, não `somenteLeitura` — só o
+  profissional usa o modo leitura, em `pro/aluno/[id]/anamnese.tsx`). O paciente volta a poder
+  retirar/trocar as 4 poses depois do onboarding.
+- **Comparativo, problema de desenho primeiro:** diferente do check-in (cada envio é uma linha
+  nova em `check_ins`, então "primeira x última" já existe de graça), a linha de base da
+  anamnese é UM conjunto que se sobrescreve (`respostas.__linha_base_*`, upsert) — sem histórico
+  nenhum pra comparar. Resolvido com tabela nova, não reaproveitando `anamnese`/
+  `anamnese_rascunho`.
+  - **Migração** [`20260921_linha_base_historico.sql`](supabase/migrations/20260921_linha_base_historico.sql),
+    **aplicada em produção**: `linha_base_historico` (`client_id`, `fotos` jsonb, `criado_em`) —
+    um snapshot do conjunto `{frente, esquerdo, direito, costas}` por linha. RLS: o próprio
+    paciente insere (client-side, ao salvar) e lê o próprio histórico; o profissional vinculado
+    (`is_professional_of`) só lê — mesmo padrão de `analises_fotos_checkin`. `get_advisors
+    (security)` depois: sem achado novo.
+  - **`registrarSnapshotLinhaBase(clientId, fotos)`** (`anamneseService.ts`) — chamada a cada
+    ENVIO EXPLÍCITO da anamnese (`OnboardingAnamnese.enviar()` e `aluno/anamnese.tsx.salvar()`),
+    nunca no autosave de texto/rascunho (evita empilhar um snapshot a cada tecla digitada). Faz
+    um dedup simples contra o último snapshot salvo — só grava se o conjunto realmente mudou.
+    Decisão consciente de cadência: snapshot por ENVIO (não por foto individual capturada) pra
+    "primeira" já nascer com o conjunto completo típico do onboarding, em vez de travar no
+    instante em que só a 1ª pose foi tirada.
+  - **`obterComparacaoLinhaBase(clientId)`** — mesmo formato de `obterComparacaoFotos` do
+    check-in: só devolve algo com 2+ snapshots distintos (1 só não é comparação), primeiro x
+    último por ângulo, com URL assinada (1h) de cada foto.
+- **UI**: comparativo embutido dentro do próprio `LinhaBaseFotos` (uma seção "Evolução —
+  primeira x mais recente" com par de miniaturas por ângulo), visível tanto pro paciente quanto
+  pro profissional — sem endpoint/tela nova, os dois lugares que já renderizam o componente
+  ganham o comparativo de graça. Fica acima da análise de IA (que continua só pro profissional).
+- `database.types.ts` regenerado (`generate_typescript_types`) — inclui `linha_base_historico`.
+- Verificado: `npx tsc --noEmit`, `npx eslint .` (mesmos 2 avisos/erros pré-existentes de
+  sempre, nenhum novo) e `npx expo export --platform web` limpos. Smoke test no preview web
+  (`expo start --web` via `preview_start`): tela de login renderiza normal, sem erro no console.
+  **Não testado logado** — sem credencial de teste pra abrir a tela real com paciente/
+  profissional vinculados.
+- **Deploy: pendente.**

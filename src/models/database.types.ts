@@ -805,6 +805,35 @@ export type Database = {
           },
         ]
       }
+      linha_base_historico: {
+        Row: {
+          client_id: string
+          criado_em: string
+          fotos: Json
+          id: string
+        }
+        Insert: {
+          client_id: string
+          criado_em?: string
+          fotos: Json
+          id?: string
+        }
+        Update: {
+          client_id?: string
+          criado_em?: string
+          fotos?: Json
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "linha_base_historico_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       planos_alimentares: {
         Row: {
           client_id: string
