@@ -290,14 +290,13 @@ function ExercicioCard({
         <Caption color={Palette.green}>✓ Treino de hoje registrado</Caption>
       ) : (
         <View style={styles.registro}>
-          {descansoIniciadoEm ? (
-            <DescansoTimer
-              inicio={descansoIniciadoEm}
-              duracaoMs={(ex.descanso ?? 90) * 1000}
-              cor={cor}
-              onPular={() => setDescansoIniciadoEm(null)}
-            />
-          ) : null}
+          <DescansoTimer
+            inicio={descansoIniciadoEm}
+            duracaoMs={(ex.descanso ?? 90) * 1000}
+            cor={cor}
+            onIniciar={() => setDescansoIniciadoEm(Date.now())}
+            onPular={() => setDescansoIniciadoEm(null)}
+          />
 
           {!ex.tempo && (
             <View style={styles.stepperRow}>
@@ -381,28 +380,38 @@ function ExercicioCard({
  * background recalcula certo na hora, sem precisar de `AppState`/lidar com drift. Ao chegar a
  * zero, vibra uma vez e passa a contar pra cima: quanto passou do descanso previsto é o
  * atraso do retorno.
+ *
+ * Fica sempre visível no card: parado, mostra o descanso previsto e deixa iniciar à mão (ex.:
+ * depois do warm/feeder, que não passam por `registrarSerie`); rodando, "Iniciar" vira
+ * "Reiniciar" ao lado de "Pular".
  */
 function DescansoTimer({
   inicio,
   duracaoMs,
   cor,
+  onIniciar,
   onPular,
 }: {
-  inicio: number;
+  inicio: number | null;
   duracaoMs: number;
   cor: string;
+  onIniciar: () => void;
   onPular: () => void;
 }) {
-  const [agora, setAgora] = useState(inicio);
+  const [agora, setAgora] = useState(() => Date.now());
   const vibrou = useRef(false);
+  const rodando = inicio !== null;
 
   useEffect(() => {
+    if (inicio === null) return;
+    vibrou.current = false;
     const id = setInterval(() => setAgora(Date.now()), 1000);
     return () => clearInterval(id);
-  }, []);
+  }, [inicio]);
 
-  const restanteMs = duracaoMs - (agora - inicio);
-  const zerou = restanteMs <= 0;
+  // `agora` pode ser anterior a um `inicio` recém-reiniciado até o próximo tick.
+  const restanteMs = rodando ? duracaoMs - Math.max(0, agora - inicio) : duracaoMs;
+  const zerou = rodando && restanteMs <= 0;
 
   useEffect(() => {
     if (zerou && !vibrou.current) {
@@ -412,14 +421,62 @@ function DescansoTimer({
   }, [zerou]);
 
   return (
-    <View style={[styles.timer, { borderColor: cor }]}>
-      <Ionicons name="time-outline" size={20} color={cor} />
-      <Body style={[styles.timerValor, { color: cor }]}>
-        {zerou ? `+${formatarDuracao(-restanteMs)}` : formatarDuracao(restanteMs)}
-      </Body>
-      <Caption color={Palette.textSecondary}>{zerou ? 'atrasado pro retorno' : 'descanso'}</Caption>
-      <Button label="Pular" variant="ghost" color={Palette.textSecondary} onPress={onPular} />
+    <View style={[styles.timer, { borderColor: rodando ? cor : Palette.border }]}>
+      <Ionicons name="time-outline" size={20} color={rodando ? cor : Palette.textSecondary} />
+      <View style={styles.timerTexto}>
+        <Body style={[styles.timerValor, { color: rodando ? cor : Palette.text }]}>
+          {zerou ? `+${formatarDuracao(-restanteMs)}` : formatarDuracao(restanteMs)}
+        </Body>
+        <Caption color={Palette.textSecondary}>
+          {zerou ? 'atrasado pro retorno' : 'descanso'}
+        </Caption>
+      </View>
+      <View style={styles.timerAcoes}>
+        <TimerAcao
+          icon={rodando ? 'refresh' : 'play'}
+          label={rodando ? 'Reiniciar' : 'Iniciar'}
+          cor={cor}
+          destaque={!rodando}
+          onPress={onIniciar}
+        />
+        {rodando ? (
+          <TimerAcao icon="play-skip-forward" label="Pular" cor={cor} onPress={onPular} />
+        ) : null}
+      </View>
     </View>
+  );
+}
+
+/** Botão compacto do timer — cabe na linha do timer, sem o padding do `Button` de formulário. */
+function TimerAcao({
+  icon,
+  label,
+  cor,
+  destaque,
+  onPress,
+}: {
+  icon: keyof typeof Ionicons.glyphMap;
+  label: string;
+  cor: string;
+  destaque?: boolean;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      onPress={onPress}
+      hitSlop={6}
+      accessibilityRole="button"
+      accessibilityLabel={`${label} descanso`}
+      style={({ pressed }) => [
+        styles.timerAcao,
+        destaque ? { backgroundColor: cor, borderColor: cor } : { borderColor: cor },
+        pressed && styles.timerAcaoPressionada,
+      ]}>
+      <Ionicons name={icon} size={14} color={destaque ? Palette.background : cor} />
+      <Caption color={destaque ? Palette.background : cor} style={styles.timerAcaoTexto}>
+        {label}
+      </Caption>
+    </Pressable>
   );
 }
 
@@ -563,9 +620,32 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.sm,
   },
+  timerTexto: {
+    flex: 1,
+    minWidth: 0,
+  },
   timerValor: {
     fontVariant: ['tabular-nums'],
     fontWeight: '800',
+  },
+  timerAcoes: {
+    flexDirection: 'row',
+    gap: Spacing.xs,
+  },
+  timerAcao: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: Radius.pill,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: Spacing.xs,
+  },
+  timerAcaoPressionada: {
+    opacity: 0.6,
+  },
+  timerAcaoTexto: {
+    fontWeight: '700',
   },
   modalFundo: {
     flex: 1,

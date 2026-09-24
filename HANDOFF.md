@@ -4575,3 +4575,44 @@ fotos — mesma ideia do "antes x depois" que o check-in já tem (`obterComparac
   --yes`. Bundle `entry-d1900a2066119718104dbe91962fc94a.js`, conferido por `curl` (status, hash
   igual pelo nome do arquivo) nos dois: `app-treino.expo.app` e `app.vytraoficial.com.br`, ambos
   200.
+
+## 67. Cards do Trello: timer de descanso com Iniciar/Pular + triagem (24/set)
+
+> Numerado §67 porque o card "Dieta e treino não está aparecendo para o Tassis" cita um §66
+> (`+not-found.tsx`, rotas dinâmicas 404 em entrada direta) escrito no Mac e ainda não enviado
+> ao GitHub quando esta seção foi escrita (sessão na nuvem, sem acesso à pasta local). Ao
+> juntar as duas versões, manter as duas seções.
+
+✅ **Pedido do Guilherme:** "veja o projeto Vytra no Trello e faça as melhorias que ainda faltam"
+(quadro `https://trello.com/b/wIj5ylch/vytra`, lista "Adições/ Melhorias").
+
+- **Triagem dos cards abertos**: "Timer entre séries", "Login com Face ID", "Persistência em %
+  de dias da semana" e "Contar dia de descanso" **já estavam implementados** (§57 e §60), só
+  não foram marcados no Trello. "Dieta e treino não está aparecendo para o Tassis" já tem
+  diagnóstico e correção no §66 (falta o deploy no Mac).
+- **Cards 26 e 27 (timer de descanso)**, em [`aluno/treino.tsx`](src/app/aluno/treino.tsx):
+  - `DescansoTimer` agora fica **sempre visível** enquanto o exercício não foi concluído. Parado,
+    mostra o descanso previsto (`ex.descanso`, padrão 90s) com borda neutra e o botão
+    **Iniciar**. Isso serve para descansar depois do warm/feeder, que não passam por
+    `registrarSerie`. Rodando, fica colorido e mostra **Reiniciar** e **Pular** lado a lado.
+    Registrar série continua iniciando o timer sozinho (decisão do §57 mantida).
+  - O antigo `Button` ghost "Pular" (padding de botão de formulário, estourava a linha do
+    timer) virou `TimerAcao`: pílula compacta com ícone, dentro do bloco do timer.
+  - Reiniciar reseta a vibração; a contagem usa `Math.max(0, agora - inicio)` para não mostrar
+    mais que o previsto no primeiro tick depois de reiniciar.
+  - Verificado: `npx tsc --noEmit` limpo; `eslint` no arquivo só com os 2 erros que já existiam
+    (linhas 58 e 87, `set-state-in-effect`); `npx expo export --platform web` passa (na nuvem,
+    com `EXPO_PUBLIC_*` fictícias só pro build). **Não testado logado nem publicado.**
+- **Card 28 (imagem da cadeira flexora, ficha Leg) — não feito, fica pro Codex** (decisão do
+  Guilherme: o Codex gera a imagem). Diagnóstico: `assets/exercises/cadeira-flexora.png`
+  mostra na prática a **cadeira extensora**. O rolo inferior fica na frente da canela e a
+  sequência vai de joelho flexionado para perna estendida. A inversão horizontal do §28 só
+  espelhou o erro. Especificação para a nova imagem, seguindo o padrão visual do §28
+  (referência `elevacao-lateral-na-polia.png`, PNG com alpha):
+  1. Quadro inicial: sentada, perna **estendida**, rolo de coxa travando por cima das coxas,
+     rolo inferior **atrás** dos tornozelos (na panturrilha baixa/tendão de Aquiles).
+  2. Quadro final: joelho flexionado (~90° ou mais), calcanhar puxado para baixo e para trás,
+     sob o assento, com o rolo inferior acompanhando por trás.
+  3. Seta teal do quadro inicial para o final, indo para baixo e para trás. Máquina e
+     assento idênticos nos dois quadros.
+  O mapeamento em `src/lib/exerciseIllustrations.ts` não muda: basta substituir o arquivo.
