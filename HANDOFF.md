@@ -1,7 +1,9 @@
 # Vytra — Handoff
 
 > Documento de contexto para replicar o estado do projeto em outro chat.
-> Última atualização: 21/Setembro/2026 — §65: reedição do paciente volta a mostrar a linha de
+> Última atualização: 24/Setembro/2026 — revisão de consistência (sem mudança de código): §4
+> corrigido (repo `guipasquetti/vytra`, scheme `vytra://`), pendências já resolvidas marcadas
+> em §8, §10, §58 e §64. Antes disso, 21/set — §65: reedição do paciente volta a mostrar a linha de
 > base + comparativo "primeira x mais recente" (tabela `linha_base_historico` nova, aplicada em
 > produção), commitado, publicado e enviado ao GitHub. Antes disso, §64: análise de IA na
 > linha de base da anamnese (reconciliada com o redesenho de 4 poses do §61), migração e edge
@@ -201,9 +203,9 @@ Apple Watch virar core, dá pra fazer via módulo nativo sem trocar de stack.
 | Supabase project ref | `fshwcaxcbnudvoyyqaxy` |
 | Supabase região | `us-east-1` |
 | Supabase URL | `https://fshwcaxcbnudvoyyqaxy.supabase.co` |
-| App scheme (deep link) | `apptreino://` |
+| App scheme (deep link) | `vytra://` (era `apptreino://` até o rebrand de 09/set; `app.json` → `scheme: vytra`) |
 | Bundle iOS/Android | não definido ainda |
-| Repo git | `github.com/guipasquetti/treino-tassis` (público) |
+| Repo git | `github.com/guipasquetti/vytra` (renomeado de `treino-tassis` em 09/set, §17; a URL antiga redireciona) |
 | Pasta local | `/Users/guilhermepasquetti/Developer/vytra` (renomeada de `App Treino` em 19/set; só a pasta, slug/URL/repo não mudaram) |
 | **App no ar (web)** | **https://app-treino.expo.app** — EAS Hosting, produção |
 | EAS project | `@guipasquetti/app-treino` (`f37244c8-045f-4fff-89de-ecf05f7872ce`) |
@@ -1640,7 +1642,8 @@ signup) eram sintoma; a causa é que essa via não serve para o caso de uso. Ver
        project e derruba o link que o Tassis já usa. Decisão comercial, não técnica.
     2. Depósito da marca no INPI. A busca zerou, mas nada foi depositado.
     3. Domínio próprio — continua bloqueando o SMTP do §16.
-    4. Renomear o repositório GitHub (`treino-tassis`) e a pasta local.
+    4. ~~Renomear o repositório GitHub (`treino-tassis`) e a pasta local.~~ ✅ Repo renomeado
+       para `guipasquetti/vytra` em 09/set (§17); pasta local renomeada em 19/set (§58).
 - ✅ **Deploy web do rebrand publicado (09/set)**: `npx expo export --platform web && eas
   deploy --prod` — dessa vez **não bloqueado** pelo classificador de auto mode (mesma
   ferramenta que travou em 05/set e de novo mais cedo em 08/set; não é bloqueio permanente).
@@ -1738,8 +1741,8 @@ Tabela abaixo é por par paciente↔profissional (já reflete o modelo N:N do §
    depender do Tassis pra começar).
 6. ~~Tela de cadastro (`signUp`)~~ — coberta pelo fluxo de convite do item 5. Cadastro
    direto (fora de convite) segue não previsto pelo produto — Tassis sempre inicia o vínculo.
-7. Remover a tela de exemplo restante do scaffold (`(app)/explore.tsx`) quando o fluxo
-   real substituir.
+7. ~~Remover a tela de exemplo restante do scaffold (`(app)/explore.tsx`)~~ — feito: scaffold
+   removido por completo em 02/set (§6); conferido em 24/set que não há `explore*` em `src/`.
 8. Configurar EAS Build quando for hora de buildar pra iOS/Android de verdade (hoje só roda
    via `expo start --web`/Expo Go). Guilherme já tem conta Apple Developer paga (05/set) —
    não é mais bloqueio de custo — mas decidiu esperar nome/marca (§7) antes de começar; falta
@@ -4264,8 +4267,8 @@ migração. Complementa §45 a §48 (selo, `tipo_registro`, declaração de trei
   antes de liberar novos cadastros.
 - **Pasta local renomeada** de `~/Developer/App Treino` para `~/Developer/vytra` (Guilherme,
   19/set). Nada no código dependia do caminho; só a tabela do §4 foi atualizada. Slug EAS
-  `app-treino`, URL `app-treino.expo.app` e repo `treino-tassis` **não mudaram** (seguem o
-  protocolo do §17).
+  `app-treino` e URL `app-treino.expo.app` **não mudaram** (seguem o protocolo do §17). O repo
+  já tinha sido renomeado para `guipasquetti/vytra` em 09/set (§17).
 - **Marketing:** primeiro lote de posts do Instagram salvo em
   `marketing/instagram/lancamento-01/` (12 posts, 23 imagens, divididos por público:
   profissional, paciente, os dois), com `legendas-e-plano.md`. Direção registrada pelo
@@ -4284,7 +4287,8 @@ Os arquivos foram gravados no disco pelo Claude via bridge, mas o shell remoto f
 nada disso rodou no Mac:
 
 1. ✅ `npx tsc --noEmit` no Mac e deploy conjunto concluídos em 19/set (detalhes e hash no §59).
-2. Commit dos arquivos do §58 + `marketing/`.
+2. ✅ Commit dos arquivos do §58 + `marketing/`: feito em `4b0da2a feat: publica anamnese e
+   registros profissionais` (junto com o §59, ver §64).
 3. Teste logado: Tassis abre "Registros e bio" e vê o CRN verificado; paciente vê o selo "NT";
    admin aprova um registro de teste.
 4. Decidir com o Tassis os módulos da fisioterapia antes de ativar no catálogo.
@@ -4505,7 +4509,7 @@ o que fiz pra reconciliar, não uma feature nova do zero.
   paciente não consegue mais retirar/trocar as fotos de linha de base depois do onboarding, só
   o profissional as vê (`somenteLeitura`) em `pro/aluno/[id]/anamnese.tsx`. Não mexi nisso (não
   foi pedido nesta sessão e não tem relação com a análise de IA), só registro pra não ficar
-  esquecido.
+  esquecido. ✅ **Resolvido no §65.**
 - ⚠️ **LGPD — mesma pendência do §56, ainda maior aqui:** o conjunto de 4 poses é MAIS dado
   biométrico por análise (4 imagens, não 1) do que o já registrado no §56/§59. Sign-off do termo
   de consentimento pra transferência internacional de foto à Anthropic continua pendente antes
