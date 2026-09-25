@@ -4733,3 +4733,19 @@ esperando esse sinal — a marca (Vytra) já fechou há semanas (§7).
   arte nova necessária só para o TestFlight. Não decidido ainda: nome de exibição na App Store
   (hoje `app.json` só tem `name: "Vytra"`, usado como está) e categoria/classificação etária no
   App Store Connect — preencher na primeira submissão, direto no site.
+
+## 71. Cadeira flexora corrigida no treino do aluno (25/set)
+
+✅ A ilustração estática de `Cadeira flexora` foi substituída em
+[`assets/exercises/cadeira-flexora.png`](assets/exercises/cadeira-flexora.png). O desenho anterior
+parecia cadeira extensora. A versão aprovada pelo Guilherme mostra a flexão de joelho nas duas
+fases, com o rolo atrás dos tornozelos/panturrilhas; o fundo branco interno da máquina foi
+removido, mantendo PNG RGBA 1254×1254. `exerciseIllustrations.ts` já aponta para esse arquivo;
+`plans.dias` guarda apenas o nome do exercício, portanto não houve mudança no banco.
+
+- Build feito a partir de `origin/main` atualizado com a imagem nova, sem descartar as mudanças
+  recentes de timer de descanso, assinaturas e configuração iOS. `npx tsc --noEmit` e
+  `npx expo export --platform web` passaram.
+- Publicado no Vercel de produção (`vytra-app`, deploy `dpl_DV3EaPrLV9Gc6KyoxLDV46AKuaGo`).
+  O arquivo servido por `app.vytraoficial.com.br` tem o mesmo SHA-256 do asset local:
+  `d596118f5bef2033f357c2cb76611c3dfcad418ed8eab66a8e01afa66b14aa0e`.
