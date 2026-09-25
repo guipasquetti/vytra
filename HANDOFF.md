@@ -4743,9 +4743,14 @@ fases, com o rolo atrás dos tornozelos/panturrilhas; o fundo branco interno da 
 removido, mantendo PNG RGBA 1254×1254. `exerciseIllustrations.ts` já aponta para esse arquivo;
 `plans.dias` guarda apenas o nome do exercício, portanto não houve mudança no banco.
 
-- Build feito a partir de `origin/main` atualizado com a imagem nova, sem descartar as mudanças
-  recentes de timer de descanso, assinaturas e configuração iOS. `npx tsc --noEmit` e
-  `npx expo export --platform web` passaram.
-- Publicado no Vercel de produção (`vytra-app`, deploy `dpl_DV3EaPrLV9Gc6KyoxLDV46AKuaGo`).
-  O arquivo servido por `app.vytraoficial.com.br` tem o mesmo SHA-256 do asset local:
+- `npx tsc --noEmit` e `npx expo export --platform web` passaram. O PNG servido pelo domínio
+  oficial tem o mesmo SHA-256 do asset local:
   `d596118f5bef2033f357c2cb76611c3dfcad418ed8eab66a8e01afa66b14aa0e`.
+- **Publicação:** um deploy desta sessão (`dpl_DV3EaPrLV9Gc6KyoxLDV46AKuaGo`) foi feito a
+  partir do `origin/main` mais novo e incluiu sem intenção a gestão de assinaturas do §69,
+  marcada como pendente. Ao inspecionar o deploy imediatamente anterior
+  (`dpl_4cinepVUVFQv2Lqud46wYyZume64`), confirmou-se que ele **já continha o PNG novo** e o
+  timer de descanso, sem o §69. Feito rollback para esse deploy anterior. O domínio oficial
+  voltou a servir o bundle `entry-ec4a5c9537cb2f959f7d4813afd70989.js`, que referencia
+  `cadeira-flexora.c0a686a767730490ef520c197b16b5ed.png`. O §69 continua pendente de
+  publicação deliberada.
