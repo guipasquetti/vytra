@@ -10,7 +10,11 @@
     "backgroundColor": "#0A0C0D",
     "primaryColor": "#2ED9A3",
     "ios": {
-      "icon": "./assets/brand/vytra-app-icon-1024.png"
+      "icon": "./assets/brand/vytra-app-icon-1024.png",
+      "bundleIdentifier": "com.vytraoficial.app",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "adaptiveIcon": {

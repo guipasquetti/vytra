@@ -4677,3 +4677,59 @@ já tinha os filtros `pausada`/`encerrada` na UI desde antes, mas nada escrevia 
 - **Pendente:** publicar (pipeline de sempre) e, quando houver credencial de teste, confirmar
   pausar → reload das telas de anamnese/treino do profissional → reativar → dado volta a
   aparecer, sem perda.
+
+## 70. Início do build iOS para TestFlight (25/set)
+
+✅ **Pedido do Guilherme:** "precisamos iniciar a criação do app no TestFlight agora". Item 8
+do §10 ("Configurar EAS Build... decidiu esperar nome/marca antes de começar") estava só
+esperando esse sinal — a marca (Vytra) já fechou há semanas (§7).
+
+⚠️ **Decisão do Guilherme, feita agora (25/set):** Bundle Identifier iOS = **`com.vytraoficial.app`**
+(reflete o domínio já registrado, `vytraoficial.com.br`). Escolhido entre 4 opções apresentadas.
+**Praticamente irreversível** depois do primeiro build/submissão — não trocar sem motivo forte.
+
+- **`app.json`**: `ios.bundleIdentifier` = `com.vytraoficial.app`; `ios.infoPlist
+  .ITSAppUsesNonExemptEncryption` = `false` (app só usa TLS padrão, sem criptografia própria —
+  evita a pergunta manual de "export compliance" a cada build/submissão no App Store Connect).
+  `slug` continua `app-treino` (EAS project `f37244c8-045f-4fff-89de-ecf05f7872ce`) — trocar o
+  slug é decisão maior e separada, não feita aqui (mesma regra do §7/§58: bundle ID iOS é
+  independente do slug do projeto EAS).
+- **`eas.json`** novo (não existia): perfis `development` (dev client, distribuição interna),
+  `preview` (distribuição interna, útil pra testar num device antes de gastar um build de
+  produção) e `production` (`autoIncrement: true` — cada build de produção sobe o `buildNumber`
+  sozinho). `appVersionSource: "remote"` — o `buildNumber` real fica gerenciado pelos servidores
+  da EAS, não no `app.json`, pra não precisar commitar/mergear esse número a cada build.
+  `submit.production` vazio (usa os defaults do `eas submit -p ios`, que lê `bundleIdentifier`/
+  `projectId` do próprio `app.json`).
+- Verificado: `npx expo config --type public` resolve `ios.bundleIdentifier` corretamente;
+  `npx expo export --platform web` continua passando (mudança não toca a build web).
+- ⚠️ **Não foi possível avançar além disso nesta sessão** (cloud, sem acesso interativo):
+  `eas build`/`eas submit` para iOS exigem login com Apple ID (2FA) e, no primeiro build,
+  criação interativa de App ID/certificado de distribuição/perfil de provisionamento — nada
+  disso roda numa sessão não-interativa. **Fica para o Guilherme rodar no Mac, nesta ordem:**
+
+  ```bash
+  cd ~/Developer/vytra
+  git pull origin main
+  npx eas login
+  npx eas build --platform ios --profile production
+  ```
+  O `eas build` vai perguntar se quer que a EAS gerencie as credenciais Apple automaticamente
+  (recomendado — responder "yes"/deixar EAS gerenciar) e pedir login Apple ID + 2FA na primeira
+  vez. O build roda na nuvem da Expo, demora alguns minutos; ao final devolve um link do
+  artefato `.ipa`.
+
+  Depois do build terminar:
+  ```bash
+  npx eas submit --platform ios --latest
+  ```
+  Isso sobe o `.ipa` pro App Store Connect. De lá, TestFlight é gerenciado pelo próprio App
+  Store Connect (`appstoreconnect.apple.com` → app Vytra → aba TestFlight): adicionar testadores
+  internos (sem revisão da Apple) sai na hora; testadores externos passam por uma "Beta App
+  Review" mais leve que a revisão completa da loja, só na primeira vez.
+
+- **Pendente, fora do escopo desta sessão:** ícone/splash já existem em `assets/brand/`
+  (aplicados desde o rebrand, §7/§17) e são reaproveitados automaticamente pelo build — nenhuma
+  arte nova necessária só para o TestFlight. Não decidido ainda: nome de exibição na App Store
+  (hoje `app.json` só tem `name: "Vytra"`, usado como está) e categoria/classificação etária no
+  App Store Connect — preencher na primeira submissão, direto no site.
