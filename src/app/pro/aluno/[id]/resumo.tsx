@@ -1,6 +1,6 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { View } from 'react-native';
+import { Alert, View } from 'react-native';
 
 import { AlunoTabs } from '@/components/aluno-tabs';
 import {
@@ -35,6 +35,10 @@ import {
 } from '@/services/checkinService';
 import { obterPainelGestao, type ResumoAluno } from '@/services/gestaoService';
 import { criarAtendimento, listarAtendimentosDoCliente, type Atendimento } from '@/services/leadsService';
+import {
+  atualizarStatusAssinatura,
+  type StatusAssinatura,
+} from '@/services/professionalService';
 import { getWorkoutData, streakTreino } from '@/services/workoutService';
 import { useAuthStore } from '@/store/authStore';
 import { Palette, Spacing } from '@/theme';
@@ -62,6 +66,7 @@ export default function ResumoPacienteScreen() {
   const [notaTeleconsulta, setNotaTeleconsulta] = useState<string | null>(null);
   const [salvandoNota, setSalvandoNota] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [mudandoStatus, setMudandoStatus] = useState(false);
 
   const carregar = useCallback(async () => {
     if (!user || !clientId) return;
@@ -126,6 +131,45 @@ export default function ResumoPacienteScreen() {
     return () => clearTimeout(task);
   }, [carregar]);
 
+  async function aplicarStatus(status: StatusAssinatura) {
+    if (!paciente) return;
+    setMudandoStatus(true);
+    try {
+      await atualizarStatusAssinatura(paciente.subscriptionId, status);
+      setPaciente({ ...paciente, status });
+    } catch {
+      Alert.alert('Não consegui atualizar', 'Tente de novo em instantes.');
+    } finally {
+      setMudandoStatus(false);
+    }
+  }
+
+  function confirmarMudancaStatus(status: StatusAssinatura) {
+    if (!paciente) return;
+    const rotulos: Record<StatusAssinatura, string> = {
+      ativa: 'reativar',
+      pausada: 'pausar',
+      encerrada: 'encerrar',
+    };
+    const avisos: Record<StatusAssinatura, string> = {
+      ativa: `${paciente.nome} volta a ver treino, dieta e check-in, e você volta a ver o acompanhamento dele normalmente.`,
+      pausada: `${paciente.nome} some das telas de treino/dieta/check-in, e você também perde a visão de anamnese/treino/dieta/check-in dele até reativar. Histórico e cadastro continuam intactos — é só reativar pra ver tudo de novo.`,
+      encerrada: `${paciente.nome} perde acesso a treino/dieta/check-in, e você também perde a visão de anamnese/treino/dieta/check-in dele até reativar. Histórico e cadastro continuam intactos — é só reativar pra ver tudo de novo.`,
+    };
+    Alert.alert(
+      `${rotulos[status][0].toUpperCase()}${rotulos[status].slice(1)} acompanhamento?`,
+      avisos[status],
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: rotulos[status][0].toUpperCase() + rotulos[status].slice(1),
+          style: status === 'ativa' ? 'default' : 'destructive',
+          onPress: () => void aplicarStatus(status),
+        },
+      ],
+    );
+  }
+
   if (loading || !user) return <Loading />;
   if (!paciente) return <EmptyState text="Paciente não encontrado na sua carteira." />;
 
@@ -143,6 +187,36 @@ export default function ResumoPacienteScreen() {
         {paciente.planoSolicitadoNome && !paciente.planoNome ? (
           <Caption color={Palette.orange}>Paciente pediu: {paciente.planoSolicitadoNome}</Caption>
         ) : null}
+
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm, marginTop: Spacing.xs }}>
+          {paciente.status !== 'ativa' ? (
+            <Button
+              label="Reativar"
+              color={Palette.green}
+              variant="ghost"
+              loading={mudandoStatus}
+              onPress={() => confirmarMudancaStatus('ativa')}
+            />
+          ) : null}
+          {paciente.status !== 'pausada' ? (
+            <Button
+              label="Pausar"
+              color={Palette.orange}
+              variant="ghost"
+              loading={mudandoStatus}
+              onPress={() => confirmarMudancaStatus('pausada')}
+            />
+          ) : null}
+          {paciente.status !== 'encerrada' ? (
+            <Button
+              label="Encerrar"
+              color={Palette.danger}
+              variant="ghost"
+              loading={mudandoStatus}
+              onPress={() => confirmarMudancaStatus('encerrada')}
+            />
+          ) : null}
+        </View>
       </Card>
 
       <SectionTitle>Anamnese</SectionTitle>

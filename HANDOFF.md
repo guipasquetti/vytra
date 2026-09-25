@@ -4646,3 +4646,34 @@ ainda não commitado quando esta seção foi escrita).
   `/pro/aluno/{id}`, `.../dieta`, `.../resumo` e `/convite/{token}` sobrevivem a entrada direta
   nos dois hosts. Se o §66 (escrito no Mac) chegar depois com o mesmo arquivo, reconciliar
   mantendo a versão mais completa, sem duplicar o arquivo nem esta seção.
+
+## 69. Gestão de assinatura: pausar/encerrar/reativar aluno (25/set)
+
+✅ **Item pendente do §10** ("falta ainda gestão de `subscriptions` (cancelar/reativar aluno) —
+hoje só nasce via `finalizar_cadastro_convite`, sem tela pra mudar depois"). `pro/pacientes.tsx`
+já tinha os filtros `pausada`/`encerrada` na UI desde antes, mas nada escrevia esses valores.
+
+- **`atualizarStatusAssinatura(subscriptionId, status)`** nova em
+  [`professionalService.ts`](src/services/professionalService.ts) — grava
+  `subscriptions.status` (texto livre, sem CHECK, mesmo padrão de `convites.status`). RLS já
+  cobre: `subscriptions_write` (`professional_id = auth.uid()`) é a mesma policy que
+  `confirmarPlanoSolicitado` já usa — **sem migração**.
+- **UI** em [`pro/aluno/[id]/resumo.tsx`](src/app/pro/aluno/%5Bid%5D/resumo.tsx): botões
+  Reativar/Pausar/Encerrar no card de status (só mostra os que fazem sentido pro status atual),
+  com confirmação (`Alert.alert`, mesmo padrão de `pro/aluno/[id]/index.tsx`) antes de aplicar.
+- ⚠️ **Lente §0 (LGPD/RLS), efeito relevante encontrado ao investigar**: como
+  `is_professional_of()` só retorna `true` com `status = 'ativa'` (§5), pausar/encerrar tira o
+  acesso do **próprio profissional** aos dados clínicos desse paciente (anamnese, `plans`,
+  `planos_alimentares`, `check_ins`) até reativar — não é só o paciente que perde a visão de
+  treino/dieta. `subscriptions_select` não depende de status, então a linha continua em
+  `pro/pacientes.tsx` e o botão "Reativar" continua acessível; nada é apagado, é reversível
+  reativando. O texto de confirmação no app já avisa isso nos dois sentidos (paciente e
+  profissional), pra não ser um clique surpresa. Documentado também no docstring da função.
+- Verificado: `npx tsc --noEmit` limpo; `npx eslint` nos dois arquivos sem apontamento;
+  `npx expo export --platform web` (nesta sessão, `EXPO_PUBLIC_*` fictícias só pro build) passa.
+  **Não testado logado** — sem credencial de teste nesta sessão pra confirmar ao vivo o efeito
+  de RLS acima (ex.: como as outras telas do profissional se comportam pro paciente pausado —
+  "vazio" vs. algum aviso — não são o foco desta mudança e não foram alteradas).
+- **Pendente:** publicar (pipeline de sempre) e, quando houver credencial de teste, confirmar
+  pausar → reload das telas de anamnese/treino do profissional → reativar → dado volta a
+  aparecer, sem perda.

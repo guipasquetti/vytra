@@ -181,6 +181,40 @@ export async function confirmarPlanoSolicitado(subscriptionId: string, planoId: 
   if (error) throw error;
 }
 
+/**
+ * `subscriptions.status` é texto livre (sem CHECK), mesmo padrão de `convites.status` — dá
+ * pra estender sem migração. `ativa` é o único valor lido pelas RLS (`is_professional_of()`/
+ * `is_client_of()`, ver §5 do handoff): qualquer outro valor já tira o par paciente↔profissional
+ * do resto do app (treino, dieta, check-in, anamnese) sem precisar de RLS nova. `Filtro` em
+ * `pro/pacientes.tsx` já previa `pausada`/`encerrada`, só faltava como escrever.
+ */
+export type StatusAssinatura = 'ativa' | 'pausada' | 'encerrada';
+
+/**
+ * Pausar/encerrar/reativar aluno — item pendente do §10 do handoff ("gestão de subscriptions").
+ * RLS já permite: `subscriptions_write` deixa o profissional dono (`professional_id =
+ * auth.uid()`) escrever na própria assinatura, mesma policy que `confirmarPlanoSolicitado` já
+ * usa. Não apaga nada (histórico de treino/check-in/anamnese continua intacto no banco) — é
+ * reversível a qualquer momento reativando.
+ *
+ * ⚠️ Efeito colateral do RLS (intencional, não é bug): como `is_professional_of()` só retorna
+ * true com `status = 'ativa'` (§5 do handoff), pausar/encerrar tira o acesso do PRÓPRIO
+ * profissional aos dados clínicos desse paciente (anamnese, plans, planos_alimentares,
+ * check_ins) até reativar — não é só o paciente que deixa de ver treino/dieta. `subscriptions`
+ * em si continua visível (`subscriptions_select` não depende de status), por isso a linha do
+ * paciente continua aparecendo em `pro/pacientes.tsx` e o botão "Reativar" continua acessível.
+ */
+export async function atualizarStatusAssinatura(
+  subscriptionId: string,
+  status: StatusAssinatura,
+): Promise<void> {
+  const { error } = await supabase
+    .from('subscriptions')
+    .update({ status })
+    .eq('id', subscriptionId);
+  if (error) throw error;
+}
+
 /** Se algum profissional já confirmou um plano pra este paciente — gate de treino/dieta. */
 export async function temPlanoConfirmado(clientId: string): Promise<boolean> {
   const profissionais = await listarMeusProfissionais(clientId);
