@@ -4616,3 +4616,33 @@ fotos — mesma ideia do "antes x depois" que o check-in já tem (`obterComparac
   3. Seta teal do quadro inicial para o final, indo para baixo e para trás. Máquina e
      assento idênticos nos dois quadros.
   O mapeamento em `src/lib/exerciseIllustrations.ts` não muda: basta substituir o arquivo.
+
+## 68. Fallback de rota dinâmica para o export web (25/set)
+
+✅ **Implementado o `+not-found.tsx` citado como pendente no comentário do card 29 do Trello**
+("Dieta e treino não está aparecendo para o Tassis", diagnóstico de sessão anterior no Mac,
+ainda não commitado quando esta seção foi escrita).
+
+- Novo [`src/app/+not-found.tsx`](src/app/+not-found.tsx): tela de fallback do Expo Router, no
+  estilo do app (`Screen`/`Button`), com link para `/` (que decide sozinha login vs. área por
+  papel, mesma lógica de `index.tsx`). Sem essa convenção, o export estático não gera
+  `+not-found.html`, e uma URL sem arquivo físico correspondente pode devolver 404 puro do
+  host, sem nunca carregar o app.
+- **Achado ao investigar o histórico do problema**: `public/vercel.json` já tem `rewrites`
+  explícitos para as 4 rotas dinâmicas citadas (`/pro/aluno/:id`, `.../dieta`, `.../resumo`,
+  `/convite/:token`) desde o §17 (09/set) e §27 (11/set) — a Vercel já deveria servir essas
+  URLs em entrada direta. Não há `eas.json` no repo nem configuração equivalente para o EAS
+  Hosting; o HANDOFF do §17 registra que o EAS Hosting "roteia parâmetro dinâmico nativamente",
+  mas essa sessão não tem como confirmar isso ao vivo (sem credencial de teste, sem acesso ao
+  Mac/terminal com os dois hosts publicados). O `+not-found.tsx` é uma rede de segurança
+  adicional, correta independente da causa exata: cobre qualquer rota sem arquivo físico
+  correspondente, em qualquer host, com uma tela do produto em vez de um 404 cru.
+- Verificado: `npx tsc --noEmit` limpo; `npx eslint src/app/+not-found.tsx` sem apontamento;
+  `npx expo export --platform web` (nesta sessão, com `EXPO_PUBLIC_*` fictícias só pro build)
+  confirma a geração de `+not-found.html` na pasta exportada. **Não testado logado nem
+  publicado** — sem acesso a EAS/Vercel nesta sessão (login e `.env` reais só existem no Mac).
+- **Pendente:** publicar (`npx expo export --platform web` → `npx eas deploy --prod` → `npx
+  vercel deploy dist --project vytra-app --prod --yes`) e confirmar por `curl`/reload real que
+  `/pro/aluno/{id}`, `.../dieta`, `.../resumo` e `/convite/{token}` sobrevivem a entrada direta
+  nos dois hosts. Se o §66 (escrito no Mac) chegar depois com o mesmo arquivo, reconciliar
+  mantendo a versão mais completa, sem duplicar o arquivo nem esta seção.
