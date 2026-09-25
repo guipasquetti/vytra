@@ -4571,3 +4571,68 @@ fotos — mesma ideia do "antes x depois" que o check-in já tem (`obterComparac
   --yes`. Bundle `entry-d1900a2066119718104dbe91962fc94a.js`, conferido por `curl` (status, hash
   igual pelo nome do arquivo) nos dois: `app-treino.expo.app` e `app.vytraoficial.com.br`, ambos
   200.
+
+
+## 66. Painel do profissional não abria treino/dieta — rotas dinâmicas voltando 404 (24/set)
+
+🔴 **Achado a partir do card "Dieta e treino não está aparecendo para o Tassis"** (Trello,
+23/set, board VYTRA). Investigação (Claude, sessão de 24/set):
+
+- **Dados e RLS conferidos primeiro, e estão certos**: as 3 assinaturas do Tassis
+  (`subscriptions`) estão ativas e com `professional_id` certo; o plano de treino do Guilherme
+  Pasquetti (5 dias completos) e as dietas dele e da Gabriela Morais existem em `plans`/
+  `planos_alimentares`, vinculados ao Tassis. `is_professional_of()` cobre os 3 casos.
+- **Reproduzido ao vivo, logado como Tassis** (login real, 24/set): `pro/pacientes` mostra os
+  status certos ("Treino criado · Dieta criada" etc.), e as telas de resumo/treino/dieta
+  RENDERIZAM os dados certos quando abertas por navegação dentro do app (clique). O bug não é
+  de dado nem de tela — é de rota.
+- **Causa raiz**: `GET /pro/aluno/{id}`, `/pro/aluno/{id}/dieta` e `/pro/aluno/{id}/resumo`
+  devolvem **404 do servidor** em qualquer navegação direta (URL colada, refresh, favorito,
+  ícone salvo na tela de início) — confirmado no Network tab pros 3, com qualquer `{id}` de
+  paciente testado. Só não quebra visivelmente quando o bundle já está carregado na mesma aba
+  (o roteador client-side intercepta antes do 404 aparecer pro usuário) — o que mascarou o
+  problema em todo teste anterior feito clicando dentro do app.
+  - `app.json` tem `web.output: "static"` (export estático do Expo Router) e o projeto
+    **não tem nenhum `app/+not-found.tsx`**. Sem esse arquivo, o export estático não gera
+    nenhum HTML de fallback pro host servir em URL não-literal — e toda rota com segmento
+    dinâmico (`[id]`) é, por definição, não-literal: o id de cada paciente não existe em
+    build time pra virar arquivo estático. Resultado: qualquer entrada direta em
+    `/pro/aluno/{qualquer-id}/...` cai no 404 puro do host (EAS Hosting), sem o JS do app
+    rodar — exatamente o efeito que o Tassis descreveu.
+  - Também aparecia, nas mesmas cargas de página, `React error #418` (mismatch de hidratação)
+    no console — sintoma, não causa raiz: é o React reclamando de reconciliar o HTML que o
+    host serviu (quando serve) com o client-side render.
+- ✅ **Corrigido nesta sessão**: criado
+  [`src/app/+not-found.tsx`](src/app/+not-found.tsx) — convenção do Expo Router pro fallback
+  do export estático. Estilo simples, reaproveitando `Palette`/`Spacing` do tema, sem
+  depender de nenhum componente de `components/ui` (risco menor sem poder rodar
+  `expo export` localmente nesta sessão pra validar antes do build real).
+- ⚠️ **Falta ainda, não feito nesta sessão** (sem shell disponível no Mac a partir daqui):
+  1. `npx tsc --noEmit` e `npx expo export --platform web` (conferir que o novo arquivo
+     compila e que o export agora inclui o fallback).
+  2. Pipeline de sempre: `npx eas deploy --prod` → `npx vercel deploy dist --project
+     vytra-app --prod --yes` (os dois domínios, `app-treino.expo.app` e
+     `app.vytraoficial.com.br`).
+  3. **Reconfirmar com `curl -I`** (ou reload direto no navegador) que `GET
+     /pro/aluno/{qualquer-id}/dieta` agora volta 200, não 404 — sem esse passo o fix não
+     está validado, só escrito.
+  4. Avisar o Tassis pra testar de novo depois do deploy confirmado.
+
+## 67. Ilustração de cadeira flexora — nova revisão (25/set)
+
+O asset [`assets/exercises/cadeira-flexora.png`](assets/exercises/cadeira-flexora.png) original
+ilustrava extensão de joelho. As duas primeiras tentativas de substituição também foram
+rejeitadas pelo Guilherme por ainda parecerem cadeira extensora; não tratá-las como aprovadas.
+A terceira versão foi recriada com referência da placa de instruções Cybex para o movimento e
+de uma cadeira flexora comercial para a posição dos apoios. Mostra duas fases em perfil:
+joelhos quase estendidos no início e flexionados no fim, com apoio fixo sobre as coxas e rolo
+móvel nos tornozelos. O Guilherme identificou uma falha específica nessa versão: no quadro
+final o rolo aparecia **à frente** das panturrilhas (e numa alternativa masculina ele ficava
+**sobre** as pernas no início). A revisão seguinte manteve o movimento e corrigiu a posição
+do rolo: abaixo/atrás dos tornozelos no início e atrás das panturrilhas no fim, sem cobrir a
+frente das canelas. PNG RGBA 1254×1254 no mesmo caminho consumido por
+`exerciseIllustrations.ts`; não exigiu mudança de código. O Guilherme confirmou que esta é a
+melhor referência até agora e pediu só remover o fundo branco visível através da estrutura da
+máquina. A edição seguinte preservou as poses e os rolos e tornou transparentes os espaços
+atrás das hastes/pilhas de peso nas duas fases (alpha conferido em pixel antes branco).
+**Ainda não publicada.**
