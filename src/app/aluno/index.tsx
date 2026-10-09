@@ -2,7 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { Linking, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
 import { Body, Button, Caption, Card, EmptyState, GraficoPontos, Loading, Screen, SectionTitle, Stat } from '@/components/ui';
 import { formatarData, formatarDataHora, itensReais, listaDeCompras, somaMacros } from '@/models/domain';
@@ -12,6 +12,7 @@ import {
   listarMeusCheckins,
   type CheckIn,
 } from '@/services/checkinService';
+import { abrirLinkSeguro } from '@/lib/safeLink';
 import { buscarCategoriasPorIds, getPlanoAlimentar, type PlanoAlimentar } from '@/services/nutritionService';
 import { listarMeusProfissionais, temPlanoConfirmado } from '@/services/professionalService';
 import { proximaTeleconsulta, type Teleconsulta } from '@/services/teleconsultaService';
@@ -272,7 +273,7 @@ export default function InicioScreen() {
             <Button
               label="Entrar na chamada"
               color={Palette.blue}
-              onPress={() => Linking.openURL(estado.consulta!.link_meet)}
+              onPress={() => abrirLinkSeguro(estado.consulta!.link_meet)}
             />
           </Card>
         </>

@@ -96,19 +96,60 @@ escrito na imagem.`;
   }
 }
 
+// Cada nome novo vira uma geração PAGA de imagem na OpenAI e o resultado cai num bucket público.
+// Sem estes limites, qualquer conta (o cadastro é aberto) gerava imagem à vontade.
+const MAX_NOMES_POR_CHAMADA = 12;
+const MAX_CARACTERES_NOME = 80;
+const MAX_GERACOES_POR_DIA = 40;
+const NOME_VALIDO = /^[\p{L}\p{N} ().,'/+-]+$/u;
+
+function json(body: unknown, status = 200) {
+  return new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method !== 'POST') return new Response(null, { status: 405 });
+
+  const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+  const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+
+  // Quem chama: a outra Edge Function (`generate-ai-plan`, Bearer = service role) ou um
+  // profissional logado (`illustrationService.ts`). Paciente e conta sem papel não geram imagem.
+  const authHeader = req.headers.get('Authorization') ?? '';
+  if (authHeader !== `Bearer ${serviceRoleKey}`) {
+    const callerClient = createClient(supabaseUrl, Deno.env.get('SUPABASE_ANON_KEY')!, {
+      global: { headers: { Authorization: authHeader } },
+    });
+    const { data: userData, error: userError } = await callerClient.auth.getUser();
+    if (userError || !userData?.user) return json({ ok: false, message: 'Não autenticado.' }, 401);
+    const { data: ehProfissional } = await callerClient.rpc('is_professional');
+    if (!ehProfissional) return json({ ok: false, message: 'Restrito a profissionais.' }, 403);
+  }
 
   let body: { nomes?: string[] };
   try {
     body = await req.json();
   } catch {
-    return new Response(JSON.stringify({ ok: false, message: 'JSON inválido.' }), { status: 400 });
+    return json({ ok: false, message: 'JSON inválido.' }, 400);
   }
-  const nomes = Array.isArray(body.nomes) ? body.nomes.filter((n) => typeof n === 'string' && n.trim()) : [];
+  const nomes = (Array.isArray(body.nomes) ? body.nomes : [])
+    .filter((n): n is string => typeof n === 'string')
+    .map((n) => n.trim())
+    .filter((n) => n.length > 1 && n.length <= MAX_CARACTERES_NOME && NOME_VALIDO.test(n))
+    .slice(0, MAX_NOMES_POR_CHAMADA);
   if (!nomes.length) return new Response(JSON.stringify({ ok: true, disparados: [] }));
 
-  const db = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
+  const db = createClient(supabaseUrl, serviceRoleKey);
+
+  const inicioDoDia = new Date();
+  inicioDoDia.setUTCHours(0, 0, 0, 0);
+  const { count: geradasHoje } = await db
+    .from('exercicios_ilustracoes')
+    .select('nome_normalizado', { count: 'exact', head: true })
+    .gte('criado_em', inicioDoDia.toISOString());
+  if ((geradasHoje ?? 0) >= MAX_GERACOES_POR_DIA) {
+    return json({ ok: false, message: 'Limite diário de ilustrações atingido.' }, 429);
+  }
 
   const porNormalizado = new Map<string, string>(); // normalizado -> nome original (1º visto)
   for (const nome of nomes) {

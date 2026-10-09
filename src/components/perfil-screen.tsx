@@ -1,6 +1,6 @@
 import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { Linking, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
 import { CampoData } from '@/components/campo-data';
 import { Body, Button, Caption, Card, Field, Pill, Screen, SectionTitle, SeloVerificado, ToggleRow } from '@/components/ui';
@@ -19,6 +19,7 @@ import {
 } from '@/services/verificacaoService';
 import { supabase } from '@/lib/supabase';
 import { hardwareDisponivel, lerPreferenciaLock, salvarPreferenciaLock } from '@/lib/localAuthLock';
+import { abrirLinkSeguro } from '@/lib/safeLink';
 import { useAuthStore } from '@/store/authStore';
 import { Palette, Spacing } from '@/theme';
 
@@ -299,7 +300,7 @@ export function PerfilScreen() {
           <Body>{formatarDataHora(proximaConsulta.data_hora)}</Body>
           <Button
             label="Entrar na chamada"
-            onPress={() => Linking.openURL(proximaConsulta.link_meet)}
+            onPress={() => abrirLinkSeguro(proximaConsulta.link_meet)}
           />
         </Card>
       ) : null}

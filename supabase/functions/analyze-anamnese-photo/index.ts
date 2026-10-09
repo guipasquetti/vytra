@@ -14,6 +14,8 @@ import Anthropic from 'npm:@anthropic-ai/sdk@0.32.1';
 
 const MODELO = 'claude-sonnet-5';
 const BUCKET = 'fotos-anamnese';
+// Reanalisa o conjunto a cada foto nova (4 poses + trocas) — o teto só corta laço de requisições.
+const MAX_ANALISES_POR_DIA = 20;
 
 const ANGULOS = [
   { chave: 'frente', label: 'Frente' },
@@ -26,8 +28,18 @@ type ChaveAngulo = (typeof ANGULOS)[number]['chave'];
 type Fotos = Partial<Record<ChaveAngulo, string>>;
 type FotoCodificada = { label: string; mediaType: string; base64: string };
 
+// CORS (09/out, igual a `analyze-checkin-photos`): o app roda no navegador (web), que manda um preflight OPTIONS antes do POST.
+// Sem estes cabeçalhos a função respondia 405 ao OPTIONS e o navegador nunca chegava a enviar o
+// POST: a análise nunca rodou em produção (logs de 18 e 19/set só têm OPTIONS | 405). A
+// autorização continua sendo o JWT do Authorization, sem cookie, então origem aberta é segura.
+const CORS = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+};
+
 function resposta(body: unknown, status = 200) {
-  return new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
+  return new Response(JSON.stringify(body), { status, headers: { ...CORS, 'Content-Type': 'application/json' } });
 }
 
 /** Uint8Array -> base64 em blocos, mesmo helper de `analyze-checkin-photos`, pra não estourar a
@@ -195,6 +207,7 @@ async function analisar(
 }
 
 Deno.serve(async (req: Request) => {
+  if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS });
   if (req.method !== 'POST') return resposta({ ok: false, code: 'METODO_INVALIDO' }, 405);
 
   let body: { fotos?: Fotos };
@@ -224,7 +237,9 @@ Deno.serve(async (req: Request) => {
   const clientId = userData.user.id;
   for (const a of ANGULOS) {
     const path = fotos[a.chave];
-    if (path && !path.startsWith(`${clientId}/`)) return resposta({ ok: false, code: 'NAO_AUTORIZADO' }, 403);
+    if (path && (typeof path !== 'string' || !path.startsWith(`${clientId}/`) || path.includes('..'))) {
+      return resposta({ ok: false, code: 'NAO_AUTORIZADO' }, 403);
+    }
   }
 
   // Daqui em diante, service role — baixar foto de bucket privado, ler a assinatura do paciente
@@ -239,6 +254,14 @@ Deno.serve(async (req: Request) => {
     .limit(1)
     .maybeSingle();
   const professionalId = sub?.professional_id ?? null;
+
+  const { count: analisesHoje } = await db
+    .from('ia_geracoes')
+    .select('id', { count: 'exact', head: true })
+    .eq('client_id', clientId)
+    .eq('tipo', 'analise_foto_anamnese')
+    .gte('created_at', new Date(Date.now() - 24 * 3_600_000).toISOString());
+  if ((analisesHoje ?? 0) >= MAX_ANALISES_POR_DIA) return resposta({ ok: true, disparado: false, motivo: 'LIMITE_DIARIO' });
 
   // @ts-expect-error — EdgeRuntime é global só no runtime do Supabase, não no typecheck local.
   EdgeRuntime.waitUntil(analisar(db, clientId, professionalId, fotos));

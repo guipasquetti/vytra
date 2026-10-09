@@ -13,6 +13,7 @@ import Anthropic from 'npm:@anthropic-ai/sdk@0.32.1';
 import { macrosPorGramas, prepararParaSalvar, type PlanoEditavel } from '../../../src/models/domain.ts';
 
 const MODELO = 'claude-haiku-4-5-20251001';
+const MAX_GERACOES_POR_DIA = 30;
 
 // Cópia intencional dos nomes canônicos de `src/lib/exerciseIllustrations.ts` (esse arquivo faz
 // `require()` de PNG e não roda em Deno) — se adicionar ilustração nova lá, atualizar aqui também.
@@ -112,6 +113,22 @@ Deno.serve(async (req: Request) => {
   // Daqui em diante, service role — já autorizado acima, e precisamos ler/gravar dado que a
   // RLS do profissional não cobriria integralmente (ex.: gravar rascunho de IA).
   const db = createClient(supabaseUrl, serviceRoleKey);
+
+  // Teto por profissional: cada chamada é um prompt pago e `is_professional_of` só exige uma
+  // assinatura ativa. Uso real é algumas gerações por paciente novo, nunca perto disto.
+  const { count: geracoesHoje } = await db
+    .from('ia_geracoes')
+    .select('id', { count: 'exact', head: true })
+    .eq('professional_id', professionalId)
+    .in('tipo', ['treino', 'dieta'])
+    .gte('created_at', new Date(Date.now() - 24 * 3_600_000).toISOString());
+  if ((geracoesHoje ?? 0) >= MAX_GERACOES_POR_DIA) {
+    return resposta({
+      ok: false,
+      code: 'LIMITE_DIARIO',
+      message: 'Você atingiu o limite de gerações com IA de hoje. Tenta de novo amanhã.',
+    });
+  }
 
   const [{ data: perfil }, { data: anamnese }] = await Promise.all([
     db.from('profiles').select('data_nascimento, altura_cm, peso_kg, sexo').eq('id', clientId).maybeSingle(),

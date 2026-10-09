@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabase';
+import { extensaoSegura, lerArquivoParaUpload } from '@/lib/upload';
 import { calcularResumo, rotuloQualitativo, type RespostasCheckin, type ResumoCheckin } from '@/models/checkin';
 import type { Tables } from '@/models/database.types';
 
@@ -96,10 +97,8 @@ export async function uploadFotoCheckin(
   tipo: 'frente' | 'esquerdo' | 'direito' | 'costas',
   arquivo: { uri: string; name: string },
 ): Promise<string> {
-  const extensao = arquivo.name.includes('.') ? arquivo.name.split('.').pop() : 'jpg';
-  const caminho = `${clientId}/${Date.now()}-${tipo}.${extensao}`;
-  const resposta = await fetch(arquivo.uri);
-  const blob = await resposta.blob();
+  const caminho = `${clientId}/${Date.now()}-${tipo}.${extensaoSegura(arquivo.name, 'jpg')}`;
+  const blob = await lerArquivoParaUpload(arquivo.uri);
   const { error } = await supabase.storage
     .from('fotos-checkin')
     .upload(caminho, blob, { contentType: blob.type || undefined });

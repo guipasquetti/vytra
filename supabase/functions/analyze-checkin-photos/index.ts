@@ -14,6 +14,9 @@ import Anthropic from 'npm:@anthropic-ai/sdk@0.32.1';
 
 const MODELO = 'claude-sonnet-5';
 const BUCKET = 'fotos-checkin';
+// Cada análise é uma chamada de visão com até 8 imagens. Check-in é quinzenal e a correção só
+// vale por 24h, então este teto nunca atrapalha o uso real — só corta laço de requisições.
+const MAX_ANALISES_POR_DIA = 12;
 
 const ANGULOS = [
   { chave: 'foto_frente_path', label: 'Frente' },
@@ -26,8 +29,18 @@ type LinhaCheckin = Record<string, unknown>;
 type Foto = { path: string; label: string };
 type FotoCodificada = { label: string; mediaType: string; base64: string };
 
+// CORS (19/set): o app roda no navegador (web), que manda um preflight OPTIONS antes do POST.
+// Sem estes cabeçalhos a função respondia 405 ao OPTIONS e o navegador nunca chegava a enviar o
+// POST: a análise nunca rodou em produção (logs de 18 e 19/set só têm OPTIONS | 405). A
+// autorização continua sendo o JWT do Authorization, sem cookie, então origem aberta é segura.
+const CORS = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+};
+
 function resposta(body: unknown, status = 200) {
-  return new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
+  return new Response(JSON.stringify(body), { status, headers: { ...CORS, 'Content-Type': 'application/json' } });
 }
 
 function extrairFotos(checkin: LinhaCheckin): Foto[] {
@@ -49,12 +62,20 @@ function paraBase64(bytes: Uint8Array): string {
   return btoa(binario);
 }
 
+/** O download usa service role (ignora a RLS do Storage), então o caminho gravado na linha do
+ * check-in — que o paciente controla — só vale se estiver na pasta do próprio paciente. */
+function caminhoDoPaciente(path: string, clientId: string): boolean {
+  return path.startsWith(`${clientId}/`) && !path.includes('..');
+}
+
 async function baixarEcodificar(
   db: ReturnType<typeof createClient>,
   fotos: Foto[],
+  clientId: string,
 ): Promise<FotoCodificada[]> {
   const resultado: FotoCodificada[] = [];
   for (const f of fotos) {
+    if (!caminhoDoPaciente(f.path, clientId)) continue;
     const { data, error } = await db.storage.from(BUCKET).download(f.path);
     if (error || !data) continue;
     const bytes = new Uint8Array(await data.arrayBuffer());
@@ -151,8 +172,8 @@ async function analisar(
     const fotosAnteriores = anterior ? extrairFotos(anterior) : [];
 
     const [imgsAtuais, imgsAnteriores] = await Promise.all([
-      baixarEcodificar(db, fotosAtuais),
-      baixarEcodificar(db, fotosAnteriores),
+      baixarEcodificar(db, fotosAtuais, clientId),
+      baixarEcodificar(db, fotosAnteriores, clientId),
     ]);
 
     if (!imgsAtuais.length) {
@@ -220,6 +241,7 @@ async function analisar(
 }
 
 Deno.serve(async (req: Request) => {
+  if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS });
   if (req.method !== 'POST') return resposta({ ok: false, code: 'METODO_INVALIDO' }, 405);
 
   let body: { checkinId?: string };
@@ -258,6 +280,14 @@ Deno.serve(async (req: Request) => {
   // Daqui em diante, service role — baixar foto de bucket privado, ler check-in anterior e
   // gravar a análise não são operações que o JWT do paciente cobriria via RLS.
   const db = createClient(supabaseUrl, serviceRoleKey);
+
+  const { count: analisesHoje } = await db
+    .from('ia_geracoes')
+    .select('id', { count: 'exact', head: true })
+    .eq('client_id', checkin.client_id as string)
+    .eq('tipo', 'analise_fotos')
+    .gte('created_at', new Date(Date.now() - 24 * 3_600_000).toISOString());
+  if ((analisesHoje ?? 0) >= MAX_ANALISES_POR_DIA) return resposta({ ok: true, disparado: false, motivo: 'LIMITE_DIARIO' });
 
   // @ts-expect-error — EdgeRuntime é global só no runtime do Supabase, não no typecheck local.
   EdgeRuntime.waitUntil(analisar(db, checkin, fotosAtuais));

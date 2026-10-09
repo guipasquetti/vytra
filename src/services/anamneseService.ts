@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabase';
+import { extensaoSegura, lerArquivoParaUpload } from '@/lib/upload';
 import { extrairColunasAnamnese, type RespostasAnamnese } from '@/models/anamnese';
 
 export type AnamneseCompleta = {
@@ -36,10 +37,8 @@ export async function uploadFotoAnamnese(
   clientId: string,
   arquivo: { uri: string; name: string },
 ): Promise<string> {
-  const extensao = arquivo.name.includes('.') ? arquivo.name.split('.').pop() : 'jpg';
-  const caminho = `${clientId}/${Date.now()}.${extensao}`;
-  const resposta = await fetch(arquivo.uri);
-  const blob = await resposta.blob();
+  const caminho = `${clientId}/${Date.now()}.${extensaoSegura(arquivo.name, 'jpg')}`;
+  const blob = await lerArquivoParaUpload(arquivo.uri);
   const { error } = await supabase.storage
     .from('fotos-anamnese')
     .upload(caminho, blob, { contentType: blob.type || undefined });

@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Linking, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
 import { Button, Caption, Card, EmptyState, Field, Loading, Screen, SectionTitle } from '@/components/ui';
+import { abrirLinkSeguro } from '@/lib/safeLink';
 import { formatarDataHora } from '@/models/domain';
 import {
   listarRegistrosPendentes,
@@ -113,13 +114,13 @@ function SolicitacaoCard({
 
       <View style={styles.acoes}>
         {urlDocumento ? (
-          <Button label="Ver documento" variant="ghost" onPress={() => Linking.openURL(urlDocumento)} />
+          <Button label="Ver documento" variant="ghost" onPress={() => abrirLinkSeguro(urlDocumento)} />
         ) : null}
         {solicitacao.urlConsulta ? (
           <Button
             label="Conferir no site do conselho"
             variant="ghost"
-            onPress={() => Linking.openURL(solicitacao.urlConsulta!)}
+            onPress={() => abrirLinkSeguro(solicitacao.urlConsulta)}
           />
         ) : null}
       </View>

@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Image, Linking, Modal, Pressable, ScrollView, StyleSheet, Vibration, View } from 'react-native';
+import { Image, Modal, Pressable, ScrollView, StyleSheet, Vibration, View } from 'react-native';
 
 import {
   Body,
@@ -41,6 +41,7 @@ import { buscarIlustracoesDinamicas, type IlustracaoDinamica } from '@/services/
 import { useAuthStore } from '@/store/authStore';
 import { Palette, Radius, Spacing, trainingColor } from '@/theme';
 import { getExerciseIllustration } from '@/lib/exerciseIllustrations';
+import { abrirLinkSeguro } from '@/lib/safeLink';
 
 export default function TreinoScreen() {
   const user = useAuthStore((s) => s.user);
@@ -258,7 +259,7 @@ function ExercicioCard({
           label="Ver vídeo"
           variant="ghost"
           color={cor}
-          onPress={() => Linking.openURL(ex.video!)}
+          onPress={() => abrirLinkSeguro(ex.video)}
         />
       ) : null}
 

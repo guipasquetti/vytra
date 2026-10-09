@@ -8,7 +8,7 @@ import { supabase } from '@/lib/supabase';
  */
 
 export type GeracaoIABloqueio = {
-  code: 'PERFIL_INCOMPLETO' | 'META_CALORICA_AUSENTE' | 'RESPOSTA_INVALIDA' | 'ERRO_DESCONHECIDO';
+  code: 'PERFIL_INCOMPLETO' | 'META_CALORICA_AUSENTE' | 'RESPOSTA_INVALIDA' | 'LIMITE_DIARIO' | 'ERRO_DESCONHECIDO';
   message: string;
 };
 
@@ -18,6 +18,7 @@ const MENSAGENS_PADRAO: Record<GeracaoIABloqueio['code'], string> = {
   META_CALORICA_AUSENTE:
     'Calcule a meta calórica na calculadora acima antes de gerar a dieta com IA.',
   RESPOSTA_INVALIDA: 'A IA devolveu algo que não deu pra usar. Tenta de novo.',
+  LIMITE_DIARIO: 'Você atingiu o limite de gerações com IA de hoje. Tenta de novo amanhã.',
   ERRO_DESCONHECIDO: 'Não consegui gerar agora. Tenta de novo em instantes.',
 };
 

@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabase';
+import { extensaoSegura, lerArquivoParaUpload } from '@/lib/upload';
 
 export type StatusVerificacao = 'pendente' | 'aprovado' | 'rejeitado';
 
@@ -158,11 +159,10 @@ export async function uploadDocumentoVerificacao(
   arquivo: { uri: string; name: string },
   profissao?: string,
 ): Promise<string> {
-  const extensao = arquivo.name.includes('.') ? arquivo.name.split('.').pop() : 'pdf';
+  const extensao = extensaoSegura(arquivo.name, 'pdf');
   // Um arquivo por registro: com mais de um conselho, `carteirinha.ext` sobrescreveria o outro.
   const caminho = `${userId}/${profissao ? `registro-${profissao}` : 'carteirinha'}.${extensao}`;
-  const resposta = await fetch(arquivo.uri);
-  const blob = await resposta.blob();
+  const blob = await lerArquivoParaUpload(arquivo.uri);
   const { error } = await supabase.storage
     .from('documentos-profissionais')
     .upload(caminho, blob, { upsert: true, contentType: blob.type || undefined });

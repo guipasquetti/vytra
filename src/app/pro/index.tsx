@@ -1,10 +1,11 @@
 import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { Linking, Pressable, StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 
 import { CampoData, CampoHora } from '@/components/campo-data';
 import { Body, Button, Caption, Card, EmptyState, Field, Loading, Pill, Screen, SectionTitle } from '@/components/ui';
 import { formatarDataHora } from '@/models/domain';
+import { abrirLinkSeguro, urlHttpsValida } from '@/lib/safeLink';
 import { obterPainelGestao, type PainelGestao, type ResumoAluno } from '@/services/gestaoService';
 import { confirmarPlanoSolicitado } from '@/services/professionalService';
 import { atualizarStatusTeleconsulta, criarTeleconsulta, type TeleconsultaComPaciente } from '@/services/teleconsultaService';
@@ -338,7 +339,7 @@ function ConsultaCard({
 
       {consulta.status === 'agendada' ? (
         <View style={styles.acoes}>
-          <Button label="Entrar" onPress={() => Linking.openURL(consulta.link_meet)} />
+          <Button label="Entrar" onPress={() => abrirLinkSeguro(consulta.link_meet)} />
           <Button label="Realizada" variant="ghost" onPress={() => marcar('realizada')} disabled={salvando} />
           <Button
             label="Cancelar"
@@ -391,8 +392,9 @@ function NovaConsultaForm({
       setErro('Hora no formato HH:MM.');
       return;
     }
-    if (!link.trim()) {
-      setErro('Cola o link do Meet (gere em meet.google.com/new).');
+    const linkHttps = urlHttpsValida(link);
+    if (!linkHttps) {
+      setErro('Cola o link do Meet completo, começando com https:// (gere em meet.google.com/new).');
       return;
     }
     const dataHora = new Date(`${data}T${hora}:00`);
@@ -407,7 +409,7 @@ function NovaConsultaForm({
         professional_id: professionalId,
         patient_id: pacienteId,
         data_hora: dataHora.toISOString(),
-        link_meet: link.trim(),
+        link_meet: linkHttps,
         observacoes: observacoes.trim(),
       });
       await onCriada();

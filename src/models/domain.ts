@@ -533,7 +533,8 @@ export function prepararParaSalvar(plano: PlanoEditavel): DiaTreino[] {
       if (ex.tempo) normalizado.tempo = true;
       if (ex.descanso) normalizado.descanso = Number(ex.descanso);
       if (ex.nota?.trim()) normalizado.nota = ex.nota.trim();
-      if (ex.video?.trim()) normalizado.video = ex.video.trim();
+      // Só https: o link abre no aparelho do aluno (ver `src/lib/safeLink.ts`).
+      if (ex.video?.trim() && /^https:\/\//i.test(ex.video.trim())) normalizado.video = ex.video.trim();
       return normalizado;
     }),
   }));

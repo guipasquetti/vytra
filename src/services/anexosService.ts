@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabase';
+import { lerArquivoParaUpload, nomeArquivoSeguro } from '@/lib/upload';
 import type { Tables } from '@/models/database.types';
 
 export type Anexo = Tables<'anexos_paciente'>;
@@ -10,9 +11,8 @@ export async function uploadAnexo(
   subscriptionId: string,
   arquivo: { uri: string; name: string },
 ): Promise<string> {
-  const caminho = `${clientId}/${subscriptionId}/${Date.now()}-${arquivo.name}`;
-  const resposta = await fetch(arquivo.uri);
-  const blob = await resposta.blob();
+  const caminho = `${clientId}/${subscriptionId}/${Date.now()}-${nomeArquivoSeguro(arquivo.name)}`;
+  const blob = await lerArquivoParaUpload(arquivo.uri);
   const { error } = await supabase.storage
     .from('anexos-paciente')
     .upload(caminho, blob, { contentType: blob.type || undefined });
