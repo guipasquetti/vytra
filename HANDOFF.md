@@ -4754,3 +4754,156 @@ removido, mantendo PNG RGBA 1254×1254. `exerciseIllustrations.ts` já aponta pa
   voltou a servir o bundle `entry-ec4a5c9537cb2f959f7d4813afd70989.js`, que referencia
   `cadeira-flexora.c0a686a767730490ef520c197b16b5ed.png`. O §69 continua pendente de
   publicação deliberada.
+
+## 72. Primeiro build iOS enviado ao TestFlight (09/out)
+
+✅ Executado pelo Guilherme no Mac, seguindo o §70.
+
+- **Bloqueio inicial:** `Failed to register bundle identifier` por causa de contrato da Apple
+  (Developer Program License Agreement) e declaração de *trader status* (UE/DSA) pendentes no
+  portal. Só o Account Holder resolve. Depois de resolvidos, o EAS registrou
+  `com.vytraoficial.app` sozinho (não registrar manualmente em developer.apple.com).
+- **Credenciais:** reaproveitado o certificado de distribuição da conta (serial
+  `7117BC8174AE6589F57102F747A9F919`, expira **28/05/2027**, compartilhado com
+  `oli-health-hub`; renovar antes disso, afeta os dois apps). Provisioning profile novo gerado
+  para este bundle ID.
+- **Build:** EAS `2484cfc1-18b8-47ca-9cc4-d083d8f47a00`, versão 1.0.0, build number 3
+  (`appVersionSource: remote`). Enviado com `eas submit --platform ios --latest`; app criado no
+  App Store Connect (ASC App ID `6820995474`), grupo de TestFlight "Team (Expo)", API key
+  reaproveitada (`92ZB66ZZ4W`). Build visível em
+  `appstoreconnect.apple.com/apps/6820995474/testflight/ios` após o processamento da Apple.
+- ⚠️ **Nome na loja provisório:** "Vytra" já estava em uso na App Store; o EAS criou o app como
+  **"Vytra (a6e928)"**. Serve para TestFlight, mas **precisa de nome definitivo antes da
+  publicação pública** (App Store Connect → App Information → Name). Não afeta bundle ID. O nome
+  na tela do iPhone vem de `app.json` (`name: "Vytra"`).
+- ⚠️ **O build 3 não serve:** o ambiente `production` da EAS estava **sem variáveis**
+  (`eas env:list production` confirmou), então o app instalado não conectaria ao Supabase. Foram
+  cadastradas `EXPO_PUBLIC_SUPABASE_URL` e `EXPO_PUBLIC_SUPABASE_ANON_KEY` (visibilidade plain
+  text; a chave é a **publishable** `sb_publishable_...`, pública por design, não a anon legada
+  `eyJ...`). O `.env` local não vai para o build na nuvem: **toda variável `EXPO_PUBLIC_*` nova
+  precisa ser cadastrada também na EAS**.
+- **Build 4** (EAS `1806835f-d0c8-429c-9aa7-9daaa6a6eeee`, 1.0.0) gerado com as variáveis e
+  enviado ao App Store Connect em 09/out. **Este é o build a testar**; ignorar o 3.
+- **Pendente:** testar o build 4 no TestFlight (login, treino, dieta); adicionar testadores;
+  decidir nome definitivo; classificação etária/categoria no App Store Connect. Não usar
+  "Add for Review" (é a submissão pública da loja, fora do escopo do TestFlight).
+
+## 73. Crash na abertura do TestFlight + revisão de segurança e código (09/out)
+
+> Os builds 3, 4 e 5 abriam e fechavam no iPhone. O §72 atribuiu o build 3 às variáveis da EAS e
+> o build 5 ao `expo-secure-store`; a causa principal era outra (abaixo).
+>
+> **Estado em 09/out, depois da aprovação do Guilherme:** migrações `endurece_acesso` e
+> `limite_diario_ilustracoes` **aplicadas em produção** (conferido: policy antiga removida, 3
+> triggers novos, buckets com limite, `anon` sem `recusar_convite`); Edge Functions
+> `analyze-checkin-photos` (v3) e `analyze-anamnese-photo` (v4) **deployadas**. Ficam **pendentes**
+> o deploy de `generate-ai-plan` e `generate-exercise-illustration` (só pela CLI, ver abaixo), o
+> build 6 e o app web (nenhum `expo export`/`eas deploy` feito).
+
+### Causa provável do crash (corrigida no código, falta o build 6)
+- `src/app/index.tsx` (a primeira rota) e `src/app/redefinir-senha.tsx` testavam só
+  `typeof window !== 'undefined'` e liam `window.location.hash`. No React Native `window` existe
+  (alias do global) mas `window.location` **não**: `TypeError` no primeiro render, só no nativo
+  (na web o browser tem `location`, por isso nunca apareceu). Agora checam `Platform.OS === 'web'`.
+- Não foi possível reproduzir: esta máquina não tem runtime de simulador iOS, e o log de crash do
+  aparelho não chegou. **Confirmar no build 6.** Se ainda cair: Ajustes → Privacidade e
+  Segurança → Análises e Melhorias → Dados de Análise → `Vytra-*.ips`, ou App Store Connect →
+  TestFlight → Crashes.
+- Também corrigido: `expo-secure-store` estava na 15.0.8 (SDK 54) com SDK 57 → `~57.0.4` (o
+  `expo-doctor` apontava; mudança real, mas provavelmente não era o crash). `initialize()` do
+  `authStore` sem `try/catch` deixava a splash presa se `getSession` falhasse, e empilhava um
+  `onAuthStateChange` a cada remount. Novo `ErrorBoundary` na raiz (`_layout.tsx`, só RN puro):
+  erro de render mostra a mensagem em vez de fechar o app.
+- `AppLockGate` retornava `null` enquanto lia a preferência: dado de saúde ficava visível por
+  instantes na abertura a frio, contra o próprio comentário do arquivo. Agora cobre a tela.
+- `app.json`: `expo-camera` com `microphonePermission: false` (o app só tira foto; o plugin
+  adicionava `NSMicrophoneUsageDescription` à toa e a revisão da Apple pergunta). Conferido no
+  `Info.plist` gerado por `expo prebuild`.
+
+### Segurança: brechas confirmadas em produção
+Teste rodado em transação com `ROLLBACK` (produção intacta), simulando `authenticated`/`anon`:
+- **ALTA — `subscriptions_write` (FOR ALL).** Qualquer conta vira "profissional" por
+  `cadastrar_profissional` (a RLS não exige aprovação) e podia **inserir** assinatura `ativa`
+  para um paciente qualquer, passando a ler perfil, anamnese, fotos e check-ins dele sem convite
+  aceito. Reproduzido. O app nunca insere em `subscriptions` pelo cliente (só as RPCs
+  `SECURITY DEFINER` `finalizar_cadastro_convite` e `submeter_anamnese_autenticado`).
+- **MÉDIA — escrita demais:** `profiles_update_trainer` (profissional reescrevia qualquer coluna
+  do perfil do paciente) e `professionals_update_self` (profissional editava o próprio
+  `billing_status`/`asaas_subconta_id`); `profiles.email` não tinha a proteção que o comentário
+  de `authService.ts` dizia ter; convites com `created_by` nulo visíveis a qualquer profissional;
+  `teleconsultas_update` sem conferir o paciente.
+- **MÉDIA — caminho de arquivo controlado pelo cliente:** `check_ins.foto_*_path` e
+  `anexos_paciente.storage_path` não eram validados contra a pasta do paciente, e
+  `pode_ler_foto_checkin`/`pode_ler_anexo_paciente` liberam leitura pelo caminho gravado; as Edge
+  Functions de análise baixavam esse caminho com service role (*confused deputy*).
+- **MÉDIA — custo:** `generate-exercise-illustration` (JWT verificado, **sem checar papel**) deixa
+  qualquer conta gerar imagem paga na OpenAI e publicar num bucket público; análises de foto e
+  `generate-ai-plan` sem teto por usuário.
+- **MÉDIA — `smooth-processor`:** Edge Function em produção com `verify_jwt: false` que serve o
+  **protótipo antigo** (`prototype/`), não está no repositório. Código morto exposto, com
+  cadastro aberto. **Apagar** (`supabase functions delete smooth-processor` ou dashboard).
+- **MÉDIA — convite por e-mail sem confirmação:** a confirmação de e-mail foi desligada em 03/set
+  como contorno até haver SMTP (§16); o SMTP (Resend) existe desde 14/set e ela **nunca foi
+  religada**. Com ela desligada, quem cadastra o e-mail de outra pessoa chama
+  `obter_solicitacoes_pendentes()`, recebe o token do convite e `finalizar_cadastro_convite`
+  vincula a conta falsa ao profissional, que passa a montar treino/dieta para ela.
+- **BAIXA:** `anon` com `TRUNCATE`/DML em todas as tabelas (a RLS segura, mas `TRUNCATE` ignora
+  RLS); 6 funções `SECURITY DEFINER` executáveis por `anon` (já devolviam `false` sem
+  `auth.uid()`); buckets sem limite de tamanho; "Leaked Password Protection" desligada;
+  `Linking.openURL` abria `link_meet`/vídeo digitados pelo profissional sem validar esquema;
+  extensão/nome de arquivo do upload entravam crus no caminho.
+
+### O que foi feito (todo local)
+- **Migração aplicada:** `supabase/migrations/20261009_endurece_acesso.sql` (itens acima). Validada em transação revertida: o ataque do primeiro item passa antes e é
+  barrado depois; Tassis continua pausando/reativando assinatura própria, lendo anamnese, check-ins
+  e convites; paciente edita o próprio perfil e `submeter_anamnese_autenticado` segue funcionando;
+  `anon` ainda usa `obter_convite`, `submeter_anamnese` e lê `profissoes`. Deixa de fora, de
+  propósito, restrição de MIME nos buckets (o Blob do RN às vezes sobe sem Content-Type; testar em
+  aparelho antes) e os `s.professional_id = s.professional_id` tautológicos nas policies de
+  `check_ins`/`anexos_paciente` (o trigger de assinatura já cobre).
+- **Edge Functions editadas** (as duas de análise já deployadas; as outras duas não):
+  `generate-exercise-illustration` (exige profissional
+  ou o Bearer de service role da outra função; ≤12 nomes/chamada, ≤80 caracteres, charset;
+  ≤40 gerações/dia), `analyze-checkin-photos` (caminho precisa estar na pasta do paciente;
+  ≤12 análises/dia), `analyze-anamnese-photo` (sem `..`; ≤20/dia), `generate-ai-plan` (≤30
+  gerações/dia por profissional, devolve `LIMITE_DIARIO` com HTTP 200 como os outros bloqueios).
+  O `deno check` já acusava erros de tipo antigos (`ReturnType<typeof createClient>`); nenhum novo.
+  ⚠️ **O repo estava atrás/diferente do que roda em produção:** `analyze-checkin-photos` em
+  produção tinha CORS (corrigido direto no deploy em 19/set) que o repo não tinha — deployar o
+  arquivo do repo sem isso quebraria o app web; o CORS foi trazido pro repo e adicionado também à
+  `analyze-anamnese-photo` (sem ele a análise da foto da anamnese nunca rodava no navegador).
+  `generate-ai-plan` em produção é uma versão **mais antiga** (catálogo de exercícios menor,
+  `domain.ts` empacotado em `./src/models/`), e a de ilustração leva 1,4 MB de imagens de referência
+  em base64: nenhuma das duas cabe no deploy pela ferramenta MCP. **Publicar pela CLI** (instalar:
+  `brew install supabase/tap/supabase`; `supabase login`), na raiz do repo:
+  `supabase functions deploy generate-exercise-illustration generate-ai-plan --project-ref fshwcaxcbnudvoyyqaxy`.
+- **Trava de custo já ativa sem deploy:** migração `20261009_limite_diario_ilustracoes.sql` —
+  trigger que barra o 41º INSERT do dia em `exercicios_ilustracoes`; sem linha nova a função não
+  chama a OpenAI. Testado em transação revertida (40 passam, o 41º falha).
+- **Cliente:** `src/lib/safeLink.ts` (só `https://` abre; `link_meet` e vídeo validados também ao
+  salvar), `src/lib/upload.ts` (extensão em lista, nome sem separadores, teto de 15 MB), usados nos
+  quatro `upload*`.
+
+### Pendências, em ordem
+1. **Gerar o build 6** com estas correções e testar abertura, login e telas (aluno e profissional).
+2. **Deploy de `generate-ai-plan` e `generate-exercise-illustration` pela CLI** (ver acima) e
+   **apagar `smooth-processor`** (`supabase functions delete smooth-processor`). Migrações e as
+   duas funções de análise já estão em produção.
+3. Dashboard Supabase: **religar "Confirm email"**; ligar **Leaked Password Protection**; subir o
+   mínimo de senha (o app aceita 6).
+4. **Bloqueadores de loja/LGPD, decisão de produto:** o app **não tem exclusão de conta** (App Store
+   5.1.1(v); direito do titular, LGPD art. 18) **nem política de privacidade/termos** (a Apple exige
+   a URL; o §14 já listava o termo como lacuna). Exclusão precisa de Edge Function com service role
+   e decisão do que reter (prontuário do profissional) — não implementado.
+5. O paciente **não consegue revogar** o acesso de um profissional (só o profissional muda
+   `status`); pensar em "encerrar vínculo" pelo paciente.
+6. Dependências nativas **sem uso em `src/`**: `react-native-svg`, `expo-image`, `expo-symbols`,
+   `expo-glass-effect`, `@expo/ui`, `expo-device`, `expo-web-browser` (e reanimated/worklets/
+   gesture-handler provavelmente só por peer). Remover reduz superfície de crash, mas mexe no
+   build nativo: fazer num build à parte.
+7. `baseUrl()` no nativo cai em `app-treino.expo.app` (legado); trocar para
+   `app.vytraoficial.com.br` depois da verificação de DNS do §17. `HANDOFF` desatualizado em dois
+   pontos: o cabeçalho diz 24/set e o §66 citado no §67/§68 não existe.
+8. Lint: 12 erros do React Compiler (`set-state-in-effect`, `refs`) que já existiam; o compilador só
+   deixa de otimizar esses componentes, não quebra. `npx expo install --check` ainda lista ~17
+   pacotes com patch atrás.
