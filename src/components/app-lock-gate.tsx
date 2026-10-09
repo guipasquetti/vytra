@@ -20,10 +20,14 @@ export function AppLockGate() {
 
   useEffect(() => {
     if (Platform.OS === 'web' || !session) return;
-    lerPreferenciaLock().then((v) => {
-      setAtivado(v);
-      setLocked(v);
-    });
+    // Falha ao ler a preferência (SecureStore/biometria indisponível) não pode prender o app
+    // coberto pra sempre — cai em "sem trava", igual a aparelho sem biometria cadastrada.
+    lerPreferenciaLock()
+      .catch(() => false)
+      .then((v) => {
+        setAtivado(v);
+        setLocked(v);
+      });
   }, [session]);
 
   useEffect(() => {
@@ -48,7 +52,13 @@ export function AppLockGate() {
     if (locked) tentarDesbloquear();
   }, [locked]);
 
-  if (Platform.OS === 'web' || !session || !ativado || !locked) return null;
+  if (Platform.OS === 'web' || !session) return null;
+
+  // Ainda lendo a preferência: cobre sem mostrar controle nenhum, senão dado de saúde ficaria
+  // visível por alguns instantes na abertura a frio antes da trava decidir (era `return null`).
+  if (ativado === null) return <View style={styles.cobertura} />;
+
+  if (!ativado || !locked) return null;
 
   return (
     <View style={styles.cobertura}>

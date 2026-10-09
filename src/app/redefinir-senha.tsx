@@ -31,7 +31,9 @@ export default function RedefinirSenhaScreen() {
 
   useEffect(() => {
     async function aplicarToken() {
-      if (typeof window === 'undefined') {
+      // Só web: no nativo `window` existe mas `window.location` não (o link de recuperação
+      // abre no navegador, em `app.vytraoficial.com.br`).
+      if (Platform.OS !== 'web' || typeof window === 'undefined') {
         setEstado('invalido');
         return;
       }

@@ -1,7 +1,8 @@
-import { DarkTheme, Stack, ThemeProvider, useRouter, useSegments } from 'expo-router';
+import { DarkTheme, Stack, ThemeProvider, useRouter, useSegments, type ErrorBoundaryProps } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
+import { Pressable, Text, View } from 'react-native';
 
 import { AppLockGate } from '@/components/app-lock-gate';
 import { useAuthStore } from '@/store/authStore';
@@ -22,6 +23,29 @@ const theme = {
     primary: Palette.accent,
   },
 };
+
+/**
+ * Rede de segurança de render: erro não tratado numa tela caía em tela branca/fechava o app.
+ * Mostra o motivo em texto (útil pra quem testa no TestFlight mandar print) e deixa tentar de
+ * novo. Só a mensagem, nunca stack nem dado de sessão.
+ */
+export function ErrorBoundary({ error, retry }: ErrorBoundaryProps) {
+  return (
+    <View style={{ flex: 1, backgroundColor: Palette.background, justifyContent: 'center', padding: 24, gap: 12 }}>
+      <Text style={{ color: Palette.text, fontSize: 22, fontWeight: '800' }}>Algo deu errado</Text>
+      <Text style={{ color: Palette.textSecondary, fontSize: 15 }}>
+        A Vytra encontrou um problema nesta tela. Seus dados não foram perdidos.
+      </Text>
+      <Text style={{ color: Palette.textTertiary, fontSize: 12 }}>{String(error?.message ?? error).slice(0, 300)}</Text>
+      <Pressable
+        onPress={() => void retry()}
+        accessibilityRole="button"
+        style={{ backgroundColor: Palette.accent, borderRadius: 12, paddingVertical: 14, alignItems: 'center' }}>
+        <Text style={{ color: Palette.background, fontWeight: '800', fontSize: 16 }}>Tentar de novo</Text>
+      </Pressable>
+    </View>
+  );
+}
 
 export default function RootLayout() {
   const { session, isLoading, profileLoaded, isProfessional, initialize } = useAuthStore();

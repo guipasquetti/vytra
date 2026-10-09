@@ -16,6 +16,10 @@ interface AuthStore {
   setProfile: (profile: Profile) => void;
 }
 
+/** Um único listener por vez: `initialize` roda de novo no remount do layout (fast refresh, volta
+ * de background em alguns fluxos) e cada chamada empilhava mais um `onAuthStateChange`. */
+let authListener: { unsubscribe: () => void } | null = null;
+
 async function loadProfile(userId: string) {
   const [profile, professional] = await Promise.all([getProfile(userId), isProfessional(userId)]);
   return { profile, professional };
@@ -31,19 +35,26 @@ export const useAuthStore = create<AuthStore>((set) => ({
 
   initialize: async () => {
     set({ isLoading: true });
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
-    set({ session, user: session?.user ?? null });
+    // Falha de rede/storage no boot não pode deixar a splash presa: segue sem sessão e o
+    // guard do _layout manda pro login.
+    try {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      set({ session, user: session?.user ?? null });
 
-    if (session?.user) {
-      const { profile, professional } = await loadProfile(session.user.id);
-      set({ profile, isProfessional: professional });
+      if (session?.user) {
+        const { profile, professional } = await loadProfile(session.user.id);
+        set({ profile, isProfessional: professional });
+      }
+    } catch {
+      set({ session: null, user: null, profile: null, isProfessional: false });
     }
 
     // O callback não pode ser async/await chamadas supabase direto (lock interno de
     // auth) — deferimos o fetch de profile pra fora com setTimeout, mesmo padrão do OLI.
-    supabase.auth.onAuthStateChange((_event, session) => {
+    authListener?.unsubscribe();
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
       const hadUser = !!session?.user;
       set({ session, user: session?.user ?? null, profileLoaded: !hadUser });
 
@@ -59,6 +70,8 @@ export const useAuthStore = create<AuthStore>((set) => ({
         set({ profile: null, isProfessional: false });
       }
     });
+
+    authListener = listener.subscription;
 
     set({ isLoading: false, profileLoaded: true });
   },

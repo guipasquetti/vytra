@@ -1,4 +1,5 @@
 import { Redirect } from 'expo-router';
+import { Platform } from 'react-native';
 
 import { Loading } from '@/components/ui';
 import { useAuthStore } from '@/store/authStore';
@@ -17,11 +18,14 @@ import { useAuthStore } from '@/store/authStore';
  * carrega hash), então o usuário cai direto no login sem nunca ver a tela de trocar senha.
  * `window.location.replace` (navegação de browser de verdade, não do Router) preserva o hash
  * exatamente — é o jeito garantido de não perder o token nesse desvio.
+ *
+ * Só na web (10/out): no React Native `window` EXISTE (alias do global), mas `window.location`
+ * não — checar só `typeof window` derrubava o app nativo com `TypeError` na primeira rota.
  */
 export default function Index() {
   const { session, isLoading, profileLoaded, isProfessional } = useAuthStore();
 
-  if (typeof window !== 'undefined' && window.location.hash.includes('type=recovery')) {
+  if (Platform.OS === 'web' && typeof window !== 'undefined' && window.location.hash.includes('type=recovery')) {
     window.location.replace(`/redefinir-senha${window.location.hash}`);
     return <Loading />;
   }

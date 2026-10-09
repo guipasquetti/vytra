@@ -41,7 +41,9 @@
       [
         "expo-camera",
         {
-          "cameraPermission": "A Vytra usa a câmera pra você tirar as fotos de progresso do check-in, sempre no mesmo enquadramento."
+          "cameraPermission": "A Vytra usa a câmera pra você tirar as fotos de progresso do check-in, sempre no mesmo enquadramento.",
+          "microphonePermission": false,
+          "recordAudioAndroid": false
         }
       ],
       [
@@ -55,7 +57,8 @@
         {
           "faceIDPermission": "A Vytra usa Face ID pra travar o app e proteger seus dados de saúde."
         }
-      ]
+      ],
+      "expo-secure-store"
     ],
     "experiments": {
       "typedRoutes": true,
