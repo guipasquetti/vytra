@@ -3544,6 +3544,12 @@ em `vytraoficial.com.br`, `www.vytraoficial.com.br` e `vytra-pi.vercel.app` — 
 Não investigada a causa raiz do deploy anterior ter build vazio (não crítico agora que
 resolveu; se repetir, comparar `vercel inspect --logs` do deploy quebrado com um bom).
 
+⚠️ **Repetiu em 14/out:** landing 404 de novo (`vytraoficial.com.br`, `www`, `vytra-pi.vercel.app`;
+`app.` seguiu 200). Último deploy de produção do projeto `vytra` tinha 5 dias, "Ready", 8s, servindo
+404, provavelmente feito de fora de `site/`. Mesma correção: `cd site && npx vercel deploy --prod --yes`
+(novo deploy `vytra-rjorbbnvp-...`), os três hosts voltaram a 200 com o conteúdo certo. **Regra:** o
+deploy da landing só vale se rodado de dentro de `site/`; depois, sempre `curl -I` nos três hosts.
+
 ## 44. Perfil do profissional mostrava campos de aluno (14/set)
 
 ✅ Pedido do Guilherme: perfil de nutricionista/educador físico
