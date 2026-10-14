@@ -1,7 +1,9 @@
 # Vytra — Handoff
 
 > Documento de contexto para replicar o estado do projeto em outro chat.
-> Última atualização: 24/Setembro/2026 — revisão de consistência (sem mudança de código): §4
+> Última atualização: 14/Outubro/2026 — §75: lista de compras com carrinho de loja parceira e Growth
+> fora; §74: benchmark de ferramentas do profissional e plano da
+> Camada 1 (só planejamento; ROADMAP.md e docs/produto/ atualizados). Antes disso, 24/Setembro/2026 — revisão de consistência (sem mudança de código): §4
 > corrigido (repo `guipasquetti/vytra`, scheme `vytra://`), pendências já resolvidas marcadas
 > em §8, §10, §58 e §64. Antes disso, 21/set — §65: reedição do paciente volta a mostrar a linha de
 > base + comparativo "primeira x mais recente" (tabela `linha_base_historico` nova, aplicada em
@@ -4913,3 +4915,96 @@ Teste rodado em transação com `ROLLBACK` (produção intacta), simulando `auth
 8. Lint: 12 erros do React Compiler (`set-state-in-effect`, `refs`) que já existiam; o compilador só
    deixa de otimizar esses componentes, não quebra. `npx expo install --check` ainda lista ~17
    pacotes com patch atrás.
+
+## 74. Amplitude de trabalho do profissional: benchmark e plano da Camada 1 (14/out)
+
+> Só planejamento: **nenhuma linha de código, migração ou deploy** nesta rodada. Direção e camadas
+> 2 e 3 em [`ROADMAP.md`](ROADMAP.md) ("Amplitude de trabalho do profissional"); plano de
+> implementação da Camada 1 em
+> [`docs/produto/camada-1-ferramentas-profissional.md`](docs/produto/camada-1-ferramentas-profissional.md).
+> Não repetir aqui o conteúdo desses dois arquivos.
+
+**Pedido do Guilherme:** o profissional trabalha de forma rasa; precisa de todas as ferramentas
+para aprofundar o trabalho dentro do app, e o Vytra deve ser o mais completo do mercado.
+
+**Como foi feito.** Leitura do código do lado do profissional (`src/app/pro`, serviços, migrações)
+e das páginas oficiais de Nutrium, WebDiet, TrueCoach, Everfit, LiveClin, Dietbox, MFIT e
+Trainerize, só fontes públicas. Nenhum app de concorrente foi baixado ou analisado, e o REA não foi
+usado. A Healthie (domínio inacessível), a Hevy e o TrainingPeaks (sem conteúdo útil) **não
+renderam**: a parte de profundidade de treino (RPE/RIR, periodização, volume) vem de conhecimento
+do domínio, não de página lida.
+
+**Achados que corrigem registros anteriores:**
+- A tabela `alimentos_taco` **já tem** fibra, sódio, cálcio e ferro. O tipo `Macros` do app (4
+  campos) é que os descarta. Ampliar o tipo de forma aditiva destrava totais de micronutrientes.
+- A lista de compras **não é exclusiva** do Vytra (§30 dizia "nenhum dos 5"): a página do Dietbox
+  a lista no app do paciente. Comparar se é dinâmica antes de usar como diferencial.
+- `plans` e `planos_alimentares` têm `UNIQUE (client_id)`, e só **2 leituras do paciente** assumem
+  uma linha (`workoutService.ts:20`, `nutritionService.ts:11`). O risco real do multi-plano é outro:
+  `workout_logs`/`workout_drafts` usam `exercise_id` sem separar por plano, então dois treinadores
+  com um exercício `a1` cada colidem no histórico de carga sem erro. Isso trava a F5.
+- `expo-print` existe no SDK 57; na web **abre o diálogo de impressão** em vez de gerar arquivo, e
+  no nativo é módulo novo (exige novo build iOS).
+
+**Decisões abertas (Guilherme e Tassis):** número do registro no PDF entregue ao paciente (conflita
+com a regra do §58); modelos "starter" da Vytra e quem os revisa clinicamente; upload de vídeo
+próprio; limite de modelos por profissional; quem revisa os grupos musculares do catálogo inicial;
+chave de histórico do multi-plano.
+
+**Próximo passo:** F0 (validar o build 6, §73) e responder as decisões de F1 e F4; depois F1
+(biblioteca), que também elimina a lista de exercícios copiada à mão em `generate-ai-plan`.
+
+## 75. Lista de compras com carrinho parceiro; Growth fica fora (14/out)
+
+> Só decisão e planejamento: **nenhum código, migração ou deploy**. Desenho completo no
+> [`ROADMAP.md`](ROADMAP.md), item 7 ("Lista de compras com carrinho de loja parceira
+> patrocinadora"); o botão de compartilhar a lista é a fase F4b de
+> [`docs/produto/camada-1-ferramentas-profissional.md`](docs/produto/camada-1-ferramentas-profissional.md).
+> Não repetir aqui o conteúdo desses arquivos.
+
+**Decisões do Guilherme (14/out):**
+1. **Growth Supplements (patrocinadora do Tassis) fica fora** do app por enquanto. Registrado também
+   em "fora deste ciclo" no roadmap.
+2. O Vytra **não vende dentro do app**: facilita a compra por link, com checkout na loja.
+3. Direção: uma **loja ou mercado de produtos naturais patrocina o Vytra** (a plataforma, não o
+   profissional), sem prender o produto a uma marca, com o paciente levando a lista de compras a
+   um carrinho já montado.
+
+**O que a pesquisa mostrou (14/out):**
+- **iFood:** só achei API de lado do lojista (pedido, catálogo, conciliação, rastreio), com acesso
+  para parceiro com loja ou CNPJ. **Não confirmei** carrinho nem deep link para app de terceiro; o
+  portal de desenvolvedores devolveu 403 e os relatos vêm de terceiros. Tratar como "provavelmente
+  não" e como conversa de parceria futura, não integração.
+- **Growth:** não achei API. O que aparece sobre afiliados vem de textos de baixa credibilidade e
+  se contradiz; depende do contrato do Tassis, que não vimos.
+- **Código de ética do nutricionista (Res. CFN 599/2018, lida no site do conselho):** Art. 49
+  (benefício não ligado ao serviço), 60 (indicar ou manifestar preferência por marca; se citar,
+  oferecer mais de uma opção), 62 (venda casada), 63 (publicidade comercial de marca), 64
+  (patrocínio da indústria com conflito de interesses) e 14 (declarar conflito). Não há proibição
+  geral de vender produto ao paciente. É leitura do texto, **não parecer jurídico**. O código do
+  CONFEF (educador físico) **não foi lido**.
+- **Apple:** diretriz 3.1.3(e) permite, e exige fora do In-App Purchase, a compra de bem físico
+  consumido fora do app. Lido em resumo de fonte secundária, não no texto da Apple.
+- **Por que o patrocínio da plataforma é mais seguro:** os artigos acima miram a conduta do
+  profissional. Com patrocínio ao Vytra, sem repasse ao profissional, só alimentos e sem alterar o
+  cardápio, o risco cai, mas **não é zero**.
+
+**Achado de código:** `aluno/lista-compras.tsx` só exibe a lista (`ListaComprasSection`); não há
+compartilhamento. `plans` e `planos_alimentares` têm `publicado` (confirma a premissa da F3 do §74).
+
+**Pendências, em ordem:**
+1. Política de privacidade e termos (bloqueador de loja, §73 pendência 4): o carrinho parceiro
+   compartilha dado inferível de saúde com terceiro.
+2. **Tassis (respondido pelo Guilherme em 14/out):** atua como **nutricionista (CRN)** e **recebe
+   comissão por contrato** da Growth. Logo o código de ética do nutricionista vale para ele (§0 e o
+   texto da Res. CFN 599/2018 acima), e o Art. 49 (comissão) e o Art. 64 (patrocínio) já são
+   pertinentes à relação dele com a Growth, **independentemente do Vytra**. Isso é com ele e com o
+   CRN, não com o app, mas determina duas regras aqui: (a) nenhuma comissão ou patrocínio do Vytra
+   pode ser repassado ao Tassis nem a outro profissional; (b) não usar a Growth nem a marca dela em
+   peça, perfil ou tela do Vytra (inclui `marketing/instagram/`), para a plataforma não parecer
+   indicar a marca. Falta ainda: texto do contrato dele (não visto) e consulta ao CRN sobre o
+   patrocínio da plataforma. Parecer jurídico segue não feito.
+3. F4b (compartilhar a lista): independente de tudo, pode ir antes de qualquer parceiro.
+4. Prospectar 1 ou 2 lojas de produtos naturais com perguntas do item 7 do roadmap (link de carrinho,
+   feed de catálogo, comissão e atribuição sem identificar o paciente, exclusividade).
+5. Só então: tabela de correspondência alimento TACO → SKU, e o botão "Levar para o carrinho".
