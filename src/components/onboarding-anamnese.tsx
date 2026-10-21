@@ -5,6 +5,7 @@ import { Modal, StyleSheet, View } from 'react-native';
 
 import { CameraGuiada, type AnguloFoto } from '@/components/camera-guiada';
 import { CampoData, CampoHora } from '@/components/campo-data';
+import { ConsentimentoIa } from '@/components/consentimento-ia';
 import { SaveIndicator, type StatusSalvamento } from '@/components/save-indicator';
 import { Body, Button, Caption, Card, Field, FotoAmpliavel, Pill, Screen, SectionTitle } from '@/components/ui';
 import { supabase } from '@/lib/supabase';
@@ -201,6 +202,7 @@ export function LinhaBaseFotos({ clientId, respostas, onChange, somenteLeitura =
   async function galeria() { if (!camera) return; const r = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.8 }); if (!r.canceled && r.assets?.[0]) { const tipo = camera; setCamera(null); await salvar(tipo, { uri: r.assets[0].uri, name: r.assets[0].fileName ?? `${tipo}.jpg` }); } }
   return <Card><SectionTitle>Fotos de linha de base</SectionTitle>
     {!consentiu && !somenteLeitura ? <><Caption>Quatro fotos guiadas criam seu ponto de partida. Só você e seu profissional vinculado podem vê-las. Você pode revogar esse consentimento pela área Privacidade do app Vytra.</Caption><Button label="Aceitar e registrar consentimento" onPress={aceitar} /></> : null}
+    {consentiu && !somenteLeitura ? <ConsentimentoIa clientId={clientId} /> : null}
     {consentiu || somenteLeitura ? <View style={styles.fotoBotoes}>{poses.map(({ tipo, label }) => urls[tipo] && somenteLeitura ? <FotoAmpliavel key={tipo} uri={urls[tipo]} width={100} height={140} /> : <Button key={tipo} label={respostas[`__linha_base_${tipo}`] ? `${label} registrada` : `Registrar ${label}`} variant="ghost" style={styles.acaoGrade} onPress={() => { setAbrirCamera(false); setCamera(tipo); }} disabled={somenteLeitura} />)}</View> : null}
     {comparacao.length ? (
       <View style={styles.analiseBox}>

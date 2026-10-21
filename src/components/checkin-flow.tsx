@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { CameraGuiada, type AnguloFoto } from '@/components/camera-guiada';
+import { ConsentimentoIa } from '@/components/consentimento-ia';
 import { Body, Button, Caption, Card, Field, Pill, Screen, SectionTitle, Stat, StepperButton } from '@/components/ui';
 import { perguntasVisiveis, type PerguntaCheckin, type RespostasCheckin, type ResumoCheckin } from '@/models/checkin';
 import { corrigirCheckin, submeterCheckin, uploadFotoCheckin, type CheckIn } from '@/services/checkinService';
@@ -221,6 +222,8 @@ export function CheckinFlow({
             })()}
         </Card>
       ))}
+
+      <ConsentimentoIa clientId={clientId} />
 
       {erro ? <Caption color={Palette.danger}>{erro}</Caption> : null}
 

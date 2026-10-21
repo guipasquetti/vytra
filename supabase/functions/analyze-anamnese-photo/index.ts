@@ -38,6 +38,22 @@ const CORS = {
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
 
+// LGPD (revisão de 21/out): a foto sai para a Anthropic, então só segue com consentimento
+// específico vigente (`consentimentos_imagem`, versão abaixo, `revogado_em` nulo). Coletado no
+// app por `ConsentimentoIa`; sem ele a função não gasta chamada nenhuma e o profissional só
+// não recebe o resumo. A checagem é aqui porque o cliente é fire-and-forget e não é confiável.
+const VERSAO_CONSENTIMENTO_IA = 'analise-ia-fotos-v1';
+
+async function temConsentimentoIa(db: ReturnType<typeof createClient>, clientId: string): Promise<boolean> {
+  const { data, error } = await db
+    .from('consentimentos_imagem')
+    .select('revogado_em')
+    .eq('client_id', clientId)
+    .eq('versao', VERSAO_CONSENTIMENTO_IA)
+    .maybeSingle();
+  return !error && Boolean(data) && !data!.revogado_em;
+}
+
 function resposta(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), { status, headers: { ...CORS, 'Content-Type': 'application/json' } });
 }
@@ -246,6 +262,10 @@ Deno.serve(async (req: Request) => {
   // (pra saber contra qual profissional auditar o custo) e gravar a análise não são operações
   // que o JWT do paciente cobriria via RLS.
   const db = createClient(supabaseUrl, serviceRoleKey);
+  if (!(await temConsentimentoIa(db, clientId))) {
+    return resposta({ ok: true, disparado: false, motivo: 'SEM_CONSENTIMENTO' });
+  }
+
   const { data: sub } = await db
     .from('subscriptions')
     .select('professional_id')

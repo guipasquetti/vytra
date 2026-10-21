@@ -5008,3 +5008,29 @@ compartilhamento. `plans` e `planos_alimentares` têm `publicado` (confirma a pr
 4. Prospectar 1 ou 2 lojas de produtos naturais com perguntas do item 7 do roadmap (link de carrinho,
    feed de catálogo, comissão e atribuição sem identificar o paciente, exclusividade).
 5. Só então: tabela de correspondência alimento TACO → SKU, e o botão "Levar para o carrinho".
+
+## 76. Dois críticos da revisão de código: e-mail do convite e consentimento de IA (21/out)
+
+Origem: revisão de código de 21/out (subagente revisor sobre o repo inteiro). Corrigidos no
+código, **ainda não aplicados em produção**.
+
+1. **Convites exigem e-mail confirmado.** `supabase/migrations/20261021_convite_exige_email_confirmado.sql`
+   refaz `finalizar_cadastro_convite`, `obter_solicitacoes_pendentes` e `recusar_convite` lendo
+   `auth.users.email` só com `email_confirmed_at is not null`. Só a origem do e-mail muda; assinaturas e
+   grants do `20261009_endurece_acesso.sql` ficam. **Isto não basta sozinho:** com "Confirm email"
+   desligado o Supabase já grava `email_confirmed_at` no cadastro, então a guarda só age depois que o
+   Guilherme religar *Confirm email* no dashboard (item 3 do §73). Ao religar, testar o fluxo de
+   convite de ponta a ponta: `signUp` deixa de devolver sessão até confirmar.
+2. **Foto só vai para a IA com consentimento específico.** Nova versão `analise-ia-fotos-v1` em
+   `consentimentos_imagem` (separada de `linha-base-v1`, que só cobre guardar e mostrar a foto ao
+   profissional). `analyze-checkin-photos` e `analyze-anamnese-photo` respondem
+   `{ disparado: false, motivo: 'SEM_CONSENTIMENTO' }` quando não há linha vigente (`revogado_em` nulo).
+   App: `src/services/consentimentoService.ts` e `src/components/consentimento-ia.tsx`, usado no
+   `checkin-flow.tsx` e no bloco de fotos da anamnese; aceite e revogação ficam na própria tela.
+   Recusar não bloqueia o envio das fotos.
+
+Pendências que esta rodada não fecha: **deploy das duas Edge Functions** e **aplicar a migration**
+(ambos em produção, dependem do OK do Guilherme); **texto do consentimento** (rascunho em
+`consentimento-ia.tsx`) precisa de revisão dele, e a Anthropic entrar como suboperador no termo; política
+de privacidade e exclusão de conta seguem abertas (§73, itens 4 e 5). `analyze-*` e `generate-ai-plan`
+ainda têm os outros achados da revisão (CORS do `generate-ai-plan`, upsert destrutivo, tetos de custo).
